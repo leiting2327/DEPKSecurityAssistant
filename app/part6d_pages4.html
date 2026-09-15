@@ -1,0 +1,176 @@
+<script>
+/* ---------- 威胁情报与沙箱 ---------- */
+const THR_TABS=[{id:'intel',l:'威胁情报'},{id:'sand',l:'沙箱分析'},{id:'ioc',l:'IOC 库'}];
+function renderThreat(){
+  const tab=store.tab||'intel';
+  $('#tbTitle').textContent='威胁情报与沙箱';$('#tbCrumb').textContent=PAGE_TITLE.threat;
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(THR_TABS,tab,'threat')}</div><div id="thrBody"></div></div>`;
+  bindTabs('#viewInner','threat');
+  ({intel:rThrIntel,sand:rThrSand,ioc:rThrIoc}[tab])();
+}
+function rThrIntel(){
+  $('#thrBody').innerHTML=`
+  <div class="flex mb16" style="gap:10px;flex-wrap:wrap">
+    <span class="stat-chip" style="border-color:var(--border-2)">${I.intel} 情报源 <b>12</b></span>
+    <span class="stat-chip" style="border-color:var(--border-2)">今日新增 IOC <b>1,284</b></span>
+    <span class="stat-chip" style="border-color:var(--border-2)">信誉查询 <b>2.4M 次/日</b></span>
+    <span class="stat-chip" style="border-color:var(--border-2)">时效性 <b style="color:var(--green)">实时</b></span>
+  </div>
+  <div class="grid-2">${TI_FEED.map(t=>`<div class="card hover"><div class="flex between"><div class="flex" style="gap:10px"><div style="width:38px;height:38px;border-radius:10px;background:${t.sev==='crit'?'var(--red-soft)':t.sev==='high'?'var(--amber-soft)':'var(--accent-soft)'};color:${t.sev==='crit'?'var(--red)':t.sev==='high'?'var(--amber)':'var(--accent)'};display:flex;align-items:center;justify-content:center">${I.radar}</div>
+    <div><div style="font-weight:700;font-size:13.5px">${esc(t.t)}</div><div style="font-size:11.5px;color:var(--text-3)">${esc(t.act)}</div></div></div>
+    <span class="pill ${t.sev==='crit'?'red':t.sev==='high'?'amber':'blue'}">${t.sev==='crit'?'严重':t.sev==='high'?'高危':'中危'}</span></div>
+    <p style="font-size:12.5px;color:var(--text-2);margin-top:12px;line-height:1.65">${esc(t.desc)}</p>
+    <div class="flex mt12" style="gap:8px">${t.tactic.map(x=>`<span class="pill gray" style="font-size:10px">${x}</span>`).join('')}<span class="pill green" style="margin-left:auto;font-size:10px">${t.date} · 已推送终端</span></div></div>`).join('')}</div>
+  <div class="card mt16"><div class="card-title">情报联动</div>
+    <div class="grid-3">${[['终端信誉联动','文件/进程实时查信誉','已启用'],['防火墙联动','恶意 IP 自动封禁','已启用'],['EDR 规则联动','IOC 自动生成检测规则','已启用'],['SIEM 推送','实时转发情报事件','已启用'],['SOAR 剧本','情报触发自动响应','已启用'],['邮件网关联动','钓鱼附件共享分析','已启用']].map(x=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${x[0]}</div><div class="t-desc">${x[1]}</div></div><span class="pill green">${x[2]}</span></div>`).join('')}</div></div>`;
+}
+function rThrSand(){
+  $('#thrBody').innerHTML=`
+  <div class="grid-2" style="grid-template-columns:1fr 1.6fr">
+    <div>
+      <div class="card"><div class="card-title">沙箱测试病毒 <span class="sub">静态分析 · 不执行代码</span></div>
+        <div class="dropzone" id="sandDrop">${I.upload}<div><b>拖拽文件到这里</b> 或 <span style="color:var(--accent)">点击选择</span></div>
+        <div style="font-size:11px;margin-top:8px">支持 exe / dll / docx / xlsm / pdf / js / vbs / ps1 等<br>将自动执行特征匹配 · 熵分析 · PE 结构解析 · 行为模拟</div></div>
+        <button class="btn btn-primary mt12" style="width:100%" id="btnSandPick">${I.scan} 选择文件分析</button>
+        <div class="mt12" style="font-size:11.5px;color:var(--text-3)">提示：先用「病毒防护 → EICAR 测试」生成测试文件，再拖入这里即可看到完整检测报告。</div>
+      </div>
+      <div class="card mt16"><div class="card-title">分析队列</div><div id="sandQueue" style="font-size:12px;color:var(--text-3)">暂无排队任务</div></div>
+      <div class="card mt16" style="border-color:var(--accent-line)"><div class="card-title flex between"><span>${I.lock} 动态沙盒 <span class="pill ${REAL?'green':'gray'}">${REAL?'Windows 版 · 真实运行':'需 Windows 版'}</span></span><span class="sub">受限环境运行样本并采集行为</span></div>
+        <p style="font-size:12px;color:var(--text-2);line-height:1.6">将样本复制到 <span class="mono">%TEMP%\DEPKSandbox_xxx</span> 受限目录中<b>真实运行</b>，每 0.6 秒采集一次进程树 / 网络外联 / 文件写入，超时后强制终止进程树并清理临时目录。</p>
+        ${REAL?`<div class="flex mt12" style="gap:8px;flex-wrap:wrap"><input id="dynPath" placeholder="样本文件路径，如 C:\Users\你\Downloads\sample.exe" style="flex:1;min-width:220px"><button class="btn btn-secondary btn-sm" id="btnDynPick">${I.folder} 浏览</button></div>
+        <div class="flex mt12" style="gap:8px;align-items:center"><span style="font-size:12px;color:var(--text-2)">运行时长</span>
+        <select id="dynSecs" style="width:110px"><option value="5">5 秒</option><option value="8" selected>8 秒</option><option value="15">15 秒</option></select>
+        <button class="btn btn-danger btn-sm" id="btnDynRun">${I.play} 运行动态分析</button></div>
+        <div style="font-size:10.5px;color:var(--amber);margin-top:8px">警告：动态沙盒会真实运行样本（隐藏窗口、隔离目录、超时强杀）。仅用于测试文件/可信样本；可能触发杀软拦截，请知悉风险后运行。</div>`
+        :`<div class="mt12" style="font-size:12px;color:var(--text-3)">动态沙盒依赖 Windows 原生进程管理，请在安装版「DEPKSecurityAssistant.exe」中使用。</div>`}
+        <div id="dynReport" class="mt12"></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">分析报告</div><div id="sandReport"><div class="empty" style="padding:70px 20px">${I.radar}<div>提交样本后在此生成静态分析报告</div></div></div></div>
+  </div>`;
+  const dz=$('#sandDrop');dz.onclick=()=>$('#fileDrop').click();
+  ['dragover','dragenter'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>dz.addEventListener(ev,e=>{e.preventDefault();dz.classList.remove('drag');}));
+  dz.addEventListener('drop',e=>{if(e.dataTransfer.files.length)sandRun(e.dataTransfer.files[0]);});
+  $('#btnSandPick').onclick=()=>$('#fileDrop').click();
+  if(REAL){
+    $('#btnDynPick').onclick=async()=>{const r=await window.depk.pickFile();if(r.ok){$('#dynPath').value=r.path;}};
+    $('#btnDynRun').onclick=()=>{
+      const p=($('#dynPath').value||'').trim();
+      if(!p){toast('请先输入或浏览选择样本文件路径','warn');return;}
+      confirmDlg('运行动态沙盒','将真实运行样本 <b>'+esc(p)+'</b> '+$('#dynSecs').value+' 秒（隐藏窗口 + 隔离目录 + 超时强杀）。确认继续？',()=>dynSandboxRun(p),'运行');
+    };
+  }
+  $('#fileDrop').onchange=e=>{if(e.target.files.length)sandRun(e.target.files[0]);e.target.value='';};
+}
+function sandRun(file){
+  $('#sandReport').innerHTML=`<div class="flex col" style="align-items:center;gap:12px;padding:60px 0"><div class="scan-ring running"><span class="sr-ico">${I.radar}</span></div><div style="font-size:13px">正在分析 <b>${esc(file.name)}</b>…</div><div style="font-size:11.5px;color:var(--text-3)">特征匹配 · PE 解析 · 熵值计算 · 行为模拟</div></div>`;
+  setTimeout(async()=>{
+    const r=await sandboxAnalyze(file);if(!r){$('#sandReport').innerHTML='<div class="empty">分析失败</div>';return;}
+    audit('沙箱分析',`分析 ${file.name} → ${r.verdict} (${r.score}分)`);
+    const color=r.sev==='crit'?'#f44b5a':r.sev==='high'?'#ff7a45':r.sev==='med'?'#f5b82e':'#35c759';
+    const sevTxt=r.sev==='crit'?'严重':r.sev==='high'?'高危':r.sev==='med'?'中危':'安全';
+    $('#sandReport').innerHTML=`
+    <div class="flex" style="justify-content:center;padding:8px 0"><div id="sandScore"></div></div>
+    <div style="text-align:center;margin-top:6px"><span class="pill ${r.sev==='crit'?'red':r.sev==='high'?'amber':r.sev==='med'?'blue':'green'}" style="font-size:12px">${sevTxt} · ${esc(r.verdict)}</span></div>
+    <div class="kv mt12"><span class="k">文件名</span><span class="v">${esc(r.name)}</span></div>
+    <div class="kv"><span class="k">文件大小</span><span class="v">${fmtSize(r.size)}</span></div>
+    <div class="kv"><span class="k">SHA-256</span><span class="v mono" style="font-size:10px">${esc(r.hash)}</span></div>
+    <div class="kv"><span class="k">熵值</span><span class="v">${r.entropy.toFixed(2)} / 8（${r.entropy>7.2?'偏高，疑似加密/混淆':'正常'}）</span></div>
+    <div class="kv"><span class="k">PE 结构</span><span class="v">${r.pe?`${r.pe.is64?'PE32+':'PE32'} · ${r.pe.secs.length} 节区 · ${r.pe.dlls.length} 个 DLL`:'非 PE 文件'}</span></div>
+    <div class="card-title mt16">命中规则 (${r.rules.length})</div>
+    ${r.rules.length?r.rules.map(x=>`<div class="list-item"><span class="sev ${x.sev==='crit'?'crit':x.sev==='high'?'high':x.sev==='med'?'med':'info'}"></span><div class="grow"><div style="font-size:12.5px;font-weight:600">${esc(x.name)} <span class="tag">${esc(x.type)}</span></div><div style="font-size:11px;color:var(--text-3)">${esc(x.desc)}</div></div><span class="num" style="font-weight:700;color:${x.score>70?'var(--red)':x.score>45?'var(--amber)':'var(--text-3)'}">${x.score}</span></div>`).join(''):`<div class="empty" style="padding:20px">${I.shieldck}<div>未命中任何恶意特征</div></div>`}
+    <div class="card-title mt16">模拟行为链</div>
+    <div class="timeline">${r.behav.map(b=>`<div class="tl-item ${r.sev==='crit'?'crit':r.sev==='high'?'high':'low'}"><div class="tl-time">${b.t}</div><div class="tl-title">${esc(b.a)}</div><div class="tl-desc">${esc(b.d)}</div></div>`).join('')}</div>
+    ${r.techs.length?`<div class="card-title mt16">MITRE ATT&CK</div><div class="attr-map">${r.techs.map(t=>`<span class="a">${t}</span>`).join('')}</div>`:''}
+    <div class="flex mt16" style="gap:8px;justify-content:flex-end">
+      <button class="btn btn-secondary btn-sm" id="sandDl">${I.download} 下载报告</button>
+      ${r.sev!=='low'?`<button class="btn btn-danger btn-sm" id="sandQuar">${I.lock} 加入隔离区</button>`:''}
+      <button class="btn btn-secondary btn-sm" id="sandTrust">${I.check} 加入信任</button>
+    </div>`;
+    scoreRing('#sandScore',r.score,color);
+    $('#sandDl').onclick=()=>download(`沙箱报告_${file.name}.json`,JSON.stringify({name:r.name,size:r.size,hash:r.hash,entropy:r.entropy,verdict:r.verdict,severity:sevTxt,score:r.score,rules:r.rules.map(x=>x.name),behaviors:r.behav,mitre:r.techs,time:fmtDT()},null,2),'application/json');
+    if($('#sandQuar'))$('#sandQuar').onclick=async()=>{const buf=await readHead(file);if(buf){await qAdd({name:file.name,path:'(沙箱提交) '+file.name,size:file.size,hash:r.hash,time:Date.now(),verdict:r.verdict,sev:r.sev,engine:'沙箱分析'},buf);toast('已加入隔离区（加密副本）','ok');}};
+    $('#sandTrust').onclick=()=>{store.exclusions.push({id:uid(),type:'文件',target:file.name,scope:'实时保护 + 扫描'});save();toast('已加入信任列表','ok');};
+  },900);
+}
+function rThrIoc(){
+  $('#thrBody').innerHTML=`
+  <div class="card"><div class="card-title flex between"><span>IOC 情报库 <span class="sub">${store.iocs.length} 条活跃指示器</span></span><div class="flex"><button class="btn btn-secondary btn-sm" id="iocAdd">${I.plus} 手动添加</button><button class="btn btn-primary btn-sm" id="iocSync">${I.refresh} 同步情报</button></div></div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:12%"><col style="width:26%"><col style="width:16%"><col style="width:14%"><col style="width:12%"><col style="width:20%"></colgroup>
+    <thead><tr><th>类型</th><th>指示器</th><th>来源</th><th>加入时间</th><th>严重度</th><th>标签</th></tr></thead>
+    <tbody>${store.iocs.map(x=>`<tr><td><span class="tag">${x.type}</span></td><td class="mono" style="font-size:11.5px;font-weight:600">${esc(x.value)}</td><td style="font-size:11.5px">${esc(x.src)}</td><td style="color:var(--text-3);font-size:11.5px">${relT(x.added)}</td><td><span class="pill ${x.sev==='crit'?'red':x.sev==='high'?'amber':'blue'}">${x.sev==='crit'?'严重':x.sev==='high'?'高危':'中危'}</span></td><td><div class="attr-map">${x.tags.map(t=>`<span class="a">${t}</span>`).join('')}</div></td></tr>`).join('')}</tbody></table></div></div>`;
+  $('#iocSync').onclick=()=>{const b=$('#iocSync');b.disabled=true;b.innerHTML=`${I.refresh} 同步中…`;setTimeout(()=>{store.iocs.unshift({type:'IP',value:'198.51.100.23',src:'情报联盟',added:Date.now(),sev:'high',tags:['C2','新增']});b.disabled=false;b.innerHTML=`${I.refresh} 同步情报`;rThrIoc();toast('情报同步完成：新增 1,284 条 IOC','ok');audit('威胁情报','同步 IOC 库');},1300);};
+  $('#iocAdd').onclick=()=>modal(`<div class="flex col" style="gap:10px">
+    <label style="font-size:12.5px;color:var(--text-3)">类型</label><select id="ioT"><option>IP</option><option>域名</option><option>URL</option><option>哈希</option><option>文件</option></select>
+    <label style="font-size:12.5px;color:var(--text-3)">指示器值</label><input id="ioV" placeholder="例如 203.0.113.9">
+    <label style="font-size:12.5px;color:var(--text-3)">严重度</label><select id="ioS"><option>高危</option><option>严重</option><option>中危</option></select></div>`,
+    {title:'添加 IOC',onOk:()=>{const v=$('#ioV').value.trim();if(!v){toast('请输入指示器','warn');return false;}store.iocs.unshift({type:$('#ioT').value,value:v,src:'手动添加',added:Date.now(),sev:$('#ioS').value==='严重'?'crit':$('#ioS').value==='高危'?'high':'med',tags:['手动']});save();audit('威胁情报',`添加 IOC ${v}`);rThrIoc();toast('IOC 已添加并推送所有终端','ok');}});
+}
+
+/* ---------- 合规与审计 ---------- */
+const CMP_TABS=[{id:'cb',l:'合规检查'},{id:'log',l:'审计日志'},{id:'rep',l:'报表中心'}];
+function renderCompliance(){
+  const tab=store.tab||'cb';
+  $('#tbTitle').textContent='合规、审计与报表';$('#tbCrumb').textContent=PAGE_TITLE.compliance;
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(CMP_TABS,tab,'compliance')}</div><div id="cmpBody"></div></div>`;
+  bindTabs('#viewInner','compliance');
+  ({cb:rCmpCb,log:rCmpLog,rep:rCmpRep}[tab])();
+}
+function rCmpCb(){
+  const items=[['等保 2.0 三级','网络安全等级保护',92,'green'],['CIS Benchmark','Windows 11 / Server 2022',86,'green'],['GDPR','通用数据保护条例',88,'green'],['ISO 27001','信息安全管理体系',81,'green'],['《数据安全法》','数据分类分级',79,'amber'],['《个人信息保护法》','个人信息合规',90,'green'],['SOX','财务系统审计',84,'green'],['PCI-DSS','支付卡行业标准',0,'gray']];
+  $('#cmpBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">合规体检 <span class="sub">自动核查 · 一键报告</span></div>
+      ${items.map(it=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${it[0]} <span class="pill gray" style="font-size:10px">${it[1]}</span></div></div>
+      <div class="flex" style="gap:10px;width:180px"><div class="progress grow"><div class="bar" style="width:${it[2]}%;background:${it[3]==='gray'?'var(--text-4)':it[3]==='amber'?'var(--amber)':'var(--green)'}"></div></div><b class="num" style="width:36px;text-align:right">${it[2]}%</b></div></div>`).join('')}
+      <div class="flex mt16" style="gap:10px"><button class="btn btn-primary" id="btnCbRun">${I.scan} 运行合规检查</button><button class="btn btn-secondary" id="btnCbRep">${I.download} 导出合规报告</button></div></div>
+    <div class="card"><div class="card-title">等保 2.0 三级 · 控制项</div>
+      ${[['安全物理环境','8/10','92%'],['安全通信网络','7/8','88%'],['安全区域边界','6/7','86%'],['安全计算环境','14/16','88%'],['安全管理中心','8/9','89%'],['安全管理制度','6/6','100%'],['安全管理人员','4/5','80%'],['安全建设管理','7/8','88%'],['安全运维管理','9/10','90%'],['安全扩展要求','5/6','83%']].map(x=>`<div class="kv"><span class="k">${x[0]}</span><span class="v">${x[1]} 项达标 · ${x[2]}</span></div>`).join('')}
+      <div class="mt12" style="font-size:12px;color:var(--text-3)">共 10 个层面 85 个控制项，达标 74 项（87%），11 项需整改</div>
+      <button class="btn btn-secondary btn-sm mt12">${I.file} 查看整改清单</button></div>
+  </div>`;
+  $('#btnCbRun').onclick=()=>{const b=$('#btnCbRun');b.disabled=true;b.innerHTML=`${I.scan} 检查中…`;setTimeout(()=>{b.disabled=false;b.innerHTML=`${I.scan} 运行合规检查`;toast('合规检查完成：整体 87 分，11 项需整改','ok');audit('合规检查','全项合规体检完成');},1500);};
+  $('#btnCbRep').onclick=()=>download('等保合规报告.html',`<!doctype html><meta charset="utf-8"><title>等保合规报告</title><body style="font-family:sans-serif;max-width:760px;margin:40px auto"><h1>等保 2.0 三级 合规检查报告</h1><p>检查时间：${fmtDT()} · 综合评分：87/100</p><table border="1" cellpadding="8" style="border-collapse:collapse;width:100%"><tr><th>层面</th><th>达标</th><th>得分率</th></tr>${[['安全物理环境','8/10','92%'],['安全通信网络','7/8','88%'],['安全区域边界','6/7','86%'],['安全计算环境','14/16','88%'],['安全管理中心','8/9','89%'],['安全管理制度','6/6','100%'],['安全管理人员','4/5','80%'],['安全建设管理','7/8','88%'],['安全运维管理','9/10','90%'],['安全扩展要求','5/6','83%']].map(x=>`<tr><td>${x[0]}</td><td>${x[1]}</td><td>${x[2]}</td></tr>`).join('')}</table></body>`,'text/html');toast('合规报告已导出','ok');
+}
+function rCmpLog(){
+  $('#cmpBody').innerHTML=`
+  <div class="flex mb16" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div class="flex" style="gap:8px;flex-wrap:wrap">
+      <span class="stat-chip" style="border-color:var(--border-2)">${I.audit} 今日操作 <b>${store.audit.length}</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">${I.user} 管理员 <b>4</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">${I.lock} 审计日志留存 <b>180 天</b></span>
+    </div>
+    <div class="flex" style="gap:8px"><button class="btn btn-secondary btn-sm" id="logExp">${I.download} 导出 CSV</button><button class="btn btn-ghost btn-sm">${I.refresh} 刷新</button></div>
+  </div>
+  <div class="card"><div class="card-title">操作审计（实时记录）</div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:13%"><col style="width:16%"><col style="width:34%"><col style="width:12%"><col style="width:13%"><col style="width:12%"></colgroup>
+    <thead><tr><th>时间</th><th>操作人</th><th>动作</th><th>来源 IP</th><th>MFA</th><th>结果</th></tr></thead>
+    <tbody>${store.audit.slice(0,40).map(a=>`<tr><td class="mono" style="font-size:11px">${fmtDT(new Date(a.time))}</td><td>${esc(a.user)}</td><td><b>${esc(a.action)}</b><div style="font-size:10.5px;color:var(--text-3)">${esc(a.detail)}</div></td><td class="mono" style="font-size:11px">${a.ip}</td><td><span class="pill green" style="font-size:10px">已通过</span></td><td><span class="pill green" style="font-size:10px">成功</span></td></tr>`).join('')}</tbody></table></div>
+    <div class="mt12" style="font-size:11.5px;color:var(--text-3)">操作审计为不可篡改日志（哈希链校验），支持导出与 SIEM 转发</div></div>`;
+  $('#logExp').onclick=()=>{const rows=[['时间','操作人','动作','详情','来源IP','结果']];store.audit.slice(0,40).forEach(a=>rows.push([fmtDT(new Date(a.time)),a.user,a.action,a.detail,a.ip,'成功']));download('操作审计.csv',rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n'),'text/csv');toast('审计日志已导出','ok');};
+}
+function rCmpRep(){
+  $('#cmpBody').innerHTML=`
+  <div class="flex mb16" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div class="flex" style="gap:8px"><button class="btn btn-primary" id="repGen">${I.chart} 生成周报</button><button class="btn btn-secondary" id="repCsv">${I.download} 导出 CSV 数据</button><button class="btn btn-secondary" id="repJson">${I.file} 导出 JSON</button></div>
+    <div class="flex" style="gap:8px"><select style="width:130px"><option>近 7 天</option><option>近 30 天</option><option>近 90 天</option></select><select style="width:130px"><option>全部终端</option><option>财务部</option><option>研发部</option><option>服务器</option></select></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">威胁趋势</div><div class="chart-box"><div id="repTrend"></div></div></div>
+    <div class="card"><div class="card-title">检测模块分布</div><div class="chart-box"><div id="repBars"></div></div></div>
+  </div>
+  <div class="grid-2 mt16">
+    <div class="card"><div class="card-title">严重度分布</div><div class="flex" style="justify-content:center;padding:8px 0"><div id="repDonut"></div></div><div class="chart-legend" id="repLg"></div></div>
+    <div class="card"><div class="card-title">核心指标 <span class="sub">近 30 天</span></div>
+      <div class="grid-2">${[['拦截威胁',TREND.threats.reduce((a,b)=>a+b,0)],['阻断连接',TREND.blocks.reduce((a,b)=>a+b,0)],['隔离文件',store.quarantine.length],['告警处置率','94.2%'],['终端在线率','83.3%'],['病毒库更新','12 次']].map(x=>`<div class="card kpi"><div><div class="k-val" style="font-size:19px">${x[1].toLocaleString()}</div><div class="k-lbl">${x[0]}</div></div></div>`).join('')}</div>
+      <button class="btn btn-secondary btn-sm mt16">${I.download} 下载完整周报 PDF</button></div>
+  </div>`;
+  svgLine('#repTrend',TREND.threats,{color:'#4cc2ff'});svgBars('#repBars',TREND.detByMod,{h:160});
+  svgDonut('#repDonut',TREND.sevDist);
+  $('#repLg').innerHTML=TREND.sevDist.map(t=>`<div class="lg"><i style="background:${t.c}"></i>${t.l} ${t.v}</div>`).join('');
+  $('#repCsv').onclick=()=>{const rows=[['日期',...TREND.days]];rows.push(['拦截威胁',...TREND.threats]);rows.push(['阻断连接',...TREND.blocks]);download('威胁趋势_30天.csv',rows.map(r=>r.join(',')).join('\n'),'text/csv');toast('CSV 已导出','ok');};
+  $('#repJson').onclick=()=>download('安全报表数据.json',JSON.stringify({range:'近30天',threats:TREND.threats,blocks:TREND.blocks,types:TREND.types,severity:TREND.sevDist,alerts:store.alerts.length},null,2),'application/json');
+  $('#repGen').onclick=()=>{const b=$('#repGen');b.innerHTML=`${I.refresh} 生成中…`;setTimeout(()=>{b.innerHTML=`${I.chart} 生成周报`;toast('安全运营周报已生成','ok');audit('报表生成','生成安全运营周报');},1300);};
+}
+</script>

@@ -1,0 +1,195 @@
+<script>
+/* ---------- 网络防护 ---------- */
+const NET_TABS=[{id:'fw',l:'防火墙'},{id:'web',l:'Web 与 DNS'},{id:'mail',l:'邮件防护'},{id:'ids',l:'入侵防御'}];
+function renderNetwork(){
+  const tab=store.tab||'fw';
+  $('#tbTitle').textContent='防火墙和网络保护';$('#tbCrumb').textContent=PAGE_TITLE.network;
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(NET_TABS,tab,'network')}</div><div id="netBody"></div></div>`;
+  bindTabs('#viewInner','network');
+  ({fw:rNetFw,web:rNetWeb,mail:rNetMail,ids:rNetIds}[tab])();
+}
+function rNetFw(){
+  const prof=[['域网络','192.168.0.0/16','已连接',store.firewall],['专用网络','10.10.0.0/16','已连接',store.firewall],['公用网络','—','未连接',true]];
+  $('#netBody').innerHTML=`
+  <div class="card"><div class="card-title flex between"><span>Microsoft Defender 防火墙（豆包策略托管）</span><div class="toggle ${store.firewall?'green on':''}" id="tgFw"></div></div>
+    <div class="grid-3 mt12">${prof.map(p=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${p[0]}</div><div class="t-desc">${p[1]} · ${p[2]}</div></div><div class="toggle ${p[3]?'on':''}"></div></div>`).join('')}</div>
+    <div class="flex mt12" style="gap:14px;flex-wrap:wrap">
+      <span class="stat-chip">${I.wifi} 本机地址：192.168.1.10</span><span class="stat-chip">${I.globe} 入站规则 ${store.rules.filter(r=>r.dir==='入站').length} 条</span><span class="stat-chip">${I.zap} 已拦截 128,430 次连接</span><span class="stat-chip">${I.shield} 网络入侵防御：开启</span>
+    </div></div>
+  <div class="card mt16"><div class="card-title flex between"><span>防火墙规则</span><button class="btn btn-primary btn-sm" id="addRule">${I.plus} 新建规则</button></div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:20%"><col style="width:9%"><col style="width:9%"><col style="width:12%"><col style="width:15%"><col style="width:12%"><col style="width:8%"><col style="width:9%"><col style="width:6%"></colgroup>
+    <thead><tr><th>名称</th><th>方向</th><th>协议</th><th>端口</th><th>来源</th><th>目标</th><th>操作</th><th class="num">命中</th><th></th></tr></thead>
+    <tbody>${store.rules.map(r=>`<tr><td style="font-weight:600">${esc(r.name)}</td><td><span class="tag">${esc(r.dir)}</span></td><td>${esc(r.proto)}</td><td class="mono">${esc(r.port)}</td><td class="mono" style="font-size:11px">${esc(r.src)}</td><td class="mono" style="font-size:11px">${esc(r.dst)}</td><td><span class="pill ${r.act==='允许'?'green':r.act==='阻止'?'red':'amber'}">${esc(r.act)}</span></td><td class="num">${r.hit.toLocaleString()}</td><td><div class="toggle ${r.enabled?'on':''}" data-rw="${r.id}"></div></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="grid-2 mt16">
+    <div class="card"><div class="card-title">端口控制</div><div class="kv"><span class="k">高危端口策略</span><span class="v">135/139/445 入站 → 阻止（非域）</span></div><div class="kv"><span class="k">3389 远程桌面</span><span class="v">仅允许 10.10.2.0/24</span></div><div class="kv"><span class="k">动态端口</span><span class="v">49152-65535 出站审计</span></div></div>
+    <div class="card"><div class="card-title">协议控制</div><div class="kv"><span class="k">SMBv1</span><span class="v" style="color:var(--red)">已禁用</span></div><div class="kv"><span class="k">RDP 网络级认证</span><span class="v" style="color:var(--green)">已启用</span></div><div class="kv"><span class="k">LLMNR / NetBIOS</span><span class="v" style="color:var(--green)">已禁用（防投毒）</span></div><div class="kv"><span class="k">IPv6 防火墙</span><span class="v">已启用</span></div></div>
+  </div>`;
+  $('#tgFw').onclick=()=>{store.firewall=!store.firewall;$('#tgFw').classList.toggle('on',store.firewall);save();audit('防火墙','全局防火墙 '+(store.firewall?'开启':'关闭'));toast('防火墙已'+ (store.firewall?'开启':'关闭'),'ok');};
+  $$('#netBody .toggle[data-rw]').forEach(t=>t.onclick=()=>{const r=store.rules.find(x=>x.id===t.dataset.rw);r.enabled=!r.enabled;t.classList.toggle('on',r.enabled);save();audit('防火墙规则',`${r.enabled?'启用':'停用'} ${r.name}`);});
+  $('#addRule').onclick=()=>modal(`<div class="flex col" style="gap:10px">
+    <label style="font-size:12.5px;color:var(--text-3)">规则名称</label><input id="rName" placeholder="例如 阻止 某恶意端口">
+    <div class="grid-2" style="gap:10px"><div><label style="font-size:12.5px;color:var(--text-3)">方向</label><select id="rDir"><option>入站</option><option>出站</option><option>双向</option></select></div>
+    <div><label style="font-size:12.5px;color:var(--text-3)">协议</label><select id="rProto"><option>TCP</option><option>UDP</option><option>任意</option></select></div></div>
+    <label style="font-size:12.5px;color:var(--text-3)">端口（留空为任意）</label><input id="rPort" placeholder="例如 4444">
+    <div class="grid-2" style="gap:10px"><div><label style="font-size:12.5px;color:var(--text-3)">来源 IP</label><input id="rSrc" placeholder="任意"></div>
+    <div><label style="font-size:12.5px;color:var(--text-3)">动作</label><select id="rAct"><option>阻止</option><option>允许</option><option>询问</option></select></div></div></div>`,
+    {title:'新建防火墙规则',onOk:()=>{const n=$('#rName').value.trim();if(!n){toast('请输入规则名称','warn');return false;}store.rules.push({id:'FW-'+String(store.rules.length+1).padStart(2,'0'),name:n,dir:$('#rDir').value,proto:$('#rProto').value,port:$('#rPort').value||'任意',src:$('#rSrc').value||'任意',dst:'任意',act:$('#rAct').value,app:'全部',enabled:true,hit:0});save();audit('防火墙规则',`新建规则 ${n}`);renderView();toast('规则已创建','ok');}});
+}
+function rNetWeb(){
+  $('#netBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">Web 威胁防护</div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">Web 威胁防护</div><div class="t-desc">拦截恶意网页、漏洞利用站点与可疑下载</div></div><div class="toggle ${store.webProt?'on':''}" data-w="webProt"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">URL 过滤</div><div class="t-desc">按分类库管控网页访问（成人/赌博/恶意）</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">DNS 过滤</div><div class="t-desc">恶意域名解析实时阻断</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">浏览器保护</div><div class="t-desc">浏览器扩展注入检测与恶意页面防护</div></div><div class="toggle on"></div></div>
+      <div class="kv mt12"><span class="k">今日拦截恶意 URL</span><span class="v" style="color:var(--red)">96</span></div>
+      <div class="kv"><span class="k">DNS 阻断域名</span><span class="v">1,284</span></div>
+      <div class="kv"><span class="k">分类库版本</span><span class="v">2026.09.14.7</span></div>
+    </div>
+    <div class="card"><div class="card-title">最近拦截</div>
+      ${[['hxxp://free-downloads-x.top/setup.exe','木马下载 · 已被 Web 防护拦截','2 分钟前','red'],['ad.best-ads365.com','广告软件 · URL 过滤拦截','18 分钟前','amber'],['update-patch-center.com','仿冒站点 · DNS 过滤阻断','1 小时前','red'],['lucky-casino-promo.xyz','赌博站点 · 分类库拦截','3 小时前','amber']].map(x=>`<div class="list-item"><span class="sev ${x[3]}"></span><div class="grow"><div class="mono" style="font-size:12px">${x[0]}</div><div style="font-size:11px;color:var(--text-3)">${x[1]} · ${x[2]}</div></div></div>`).join('')}
+    </div>
+  </div>
+  <div class="card mt16"><div class="card-title">URL 过滤策略</div>
+    <div class="flex" style="flex-wrap:wrap;gap:10px">${['恶意软件站点:阻止','钓鱼站点:阻止','赌博/成人:阻止','社交网络:允许','视频流媒体:允许','网盘下载:允许','软件下载:询问'].map(c=>{const[s,act]=c.split(':');return `<span class="stat-chip" style="border-color:var(--border-2)">${s} <span style="color:${act==='阻止'?'var(--red)':act==='询问'?'var(--amber)':'var(--green)'};font-weight:700">${act}</span></span>`;}).join('')}</div>
+    <button class="btn btn-secondary btn-sm mt12">${I.edit} 编辑分类策略</button></div>`;
+  $$('#netBody .toggle[data-w]').forEach(t=>t.onclick=()=>{const k=t.dataset.w;store[k]=!store[k];t.classList.toggle('on',store[k]);save();audit('网络防护',`${k} ${store[k]?'开启':'关闭'}`);toast('Web 防护已'+(store[k]?'开启':'关闭'),'ok');});
+}
+function rNetMail(){
+  $('#netBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">邮件威胁防护</div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">邮件威胁防护</div><div class="t-desc">附件沙箱 + 链接重写 + 恶意载荷剥离</div></div><div class="toggle ${store.mailProt?'on':''}" data-w="mailProt"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">反钓鱼</div><div class="t-desc">钓鱼链接实时检测与仿冒域名识别</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">反垃圾邮件</div><div class="t-desc">垃圾邮件引擎 + 用户反馈学习</div></div><div class="toggle on"></div></div>
+      <div class="kv mt12"><span class="k">今日拦截钓鱼邮件</span><span class="v" style="color:var(--red)">17</span></div>
+      <div class="kv"><span class="k">垃圾邮件拦截率</span><span class="v">99.2%</span></div>
+      <div class="kv"><span class="k">附件沙箱分析</span><span class="v">42 份 / 今日</span></div>
+    </div>
+    <div class="card"><div class="card-title">钓鱼邮件样本</div>
+      ${[['「您的账户已被锁定，请立即验证」','billing@invoice-center.top → 财务部','命中仿冒域名 + 紧急话术','红']].map(x=>`<div class="alert-row crit"><div class="grow"><div style="font-weight:600">${x[0]}</div><div style="font-size:11.5px;color:var(--text-3)">${x[1]}</div></div><span class="pill red">已拦截</span></div>`).join('')}
+      ${[['「发货通知」+ 宏文档','logistics@dpd-notice.top → 运营部','附件含 AutoOpen 宏，沙箱判定为木马下载器','amber']].map(x=>`<div class="alert-row high"><div class="grow"><div style="font-weight:600">${x[0]}</div><div style="font-size:11.5px;color:var(--text-3)">${x[1]}</div></div><span class="pill red">已隔离</span></div>`).join('')}
+    </div>
+  </div>`;
+  $$('#netBody .toggle[data-w]').forEach(t=>t.onclick=()=>{const k=t.dataset.w;store[k]=!store[k];t.classList.toggle('on',store[k]);save();audit('邮件防护',`${k} ${store[k]?'开启':'关闭'}`);});
+}
+function rNetIds(){
+  const stats=[['网络入侵防御 (NIDS)','1,214 规则命中 · 阻断 38 次攻击','on'],['主机入侵防御 (HIPS)','行为规则 96 条 · 拦截 12 次','on'],['C2 通信阻断','阻断 5 个 C2 会话','on'],['恶意IP阻断','自动封禁 23 个 IP','on']];
+  $('#netBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">入侵防御引擎</div>${stats.map(s=>`<div class="tgl-row"><div class="t-info"><div class="t-title">${s[0]}</div><div class="t-desc">${s[1]}</div></div><div class="toggle ${s[2]==='on'?'on':''}"></div></div>`).join('')}</div>
+    <div class="card"><div class="card-title">攻击检测统计 <span class="sub">近 24 小时</span></div>
+      <div class="chart-box"><div id="idsChart"></div></div>
+      <div class="kv mt12"><span class="k">暴力破解</span><span class="v">52 次尝试 → 已封禁源 IP</span></div>
+      <div class="kv"><span class="k">端口扫描</span><span class="v">3 起 → 已联动阻断</span></div>
+      <div class="kv"><span class="k">横向移动</span><span class="v">1 起 → 已隔离源终端</span></div>
+    </div>
+  </div>
+  <div class="card mt16"><div class="card-title">实时攻击日志</div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:12%"><col style="width:22%"><col style="width:16%"><col style="width:20%"><col style="width:12%"><col style="width:18%"></colgroup>
+    <thead><tr><th>时间</th><th>攻击类型</th><th>来源</th><th>目标</th><th>严重度</th><th>处置</th></tr></thead>
+    <tbody>${[['09:24:11','SMB 暴力破解','10.10.2.15','SRV-数据库-02','高危','已封禁 IP'],['08:51:02','C2 外联','WIN-研发部-07','node-v1.xyz','严重','已阻断'],['07:32:44','端口扫描','45.143.201.9','192.168.1.0/24','中危','已阻断'],['06:12:58','恶意软件下载','—','WIN-HR-02','高危','已隔离'],['04:47:30','DNS 隧道','LNX-K8s-Node-05','—','中危','已阻断']].map(r=>`<tr><td class="mono" style="font-size:11px">${r[0]}</td><td style="font-weight:600">${r[1]}</td><td class="mono" style="font-size:11px">${r[2]}</td><td class="mono" style="font-size:11px">${r[3]}</td><td><span class="pill ${r[4]==='严重'?'red':r[4]==='高危'?'amber':'blue'}">${r[4]}</span></td><td><span class="pill green">${r[5]}</span></td></tr>`).join('')}</tbody></table></div></div>`;
+  svgBars('#idsChart',[{l:'SMB爆破',v:52,c:'#f44b5a'},{l:'端口扫描',v:31,c:'#f5b82e'},{l:'C2',v:8,c:'#b884f5'},{l:'钓鱼',v:17,c:'#4cc2ff'},{l:'漏洞利用',v:6,c:'#2fd8c7'}],{h:150});
+}
+
+/* ---------- 应用与设备 ---------- */
+const DEV_TABS=[{id:'app',l:'应用控制'},{id:'usb',l:'外设管控'},{id:'dlp',l:'数据防泄漏'}];
+function renderDevice(){
+  const tab=store.tab||'app';
+  $('#tbTitle').textContent='应用与设备控制';$('#tbCrumb').textContent=PAGE_TITLE.device;
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(DEV_TABS,tab,'device')}</div><div id="devBody"></div></div>`;
+  bindTabs('#viewInner','device');
+  ({app:rDevApp,usb:rDevUsb,dlp:rDevDlp}[tab])();
+}
+function rDevApp(){
+  $('#devBody').innerHTML=`
+  <div class="card"><div class="card-title">应用控制</div>
+    <div class="grid-3">${[['应用白名单','仅允许列表内应用运行','on'],['应用黑名单','列表内应用禁止启动','on'],['软件更新管理','三方软件版本纳管与更新','on'],['驱动加载控制','仅允许签名驱动','on'],['脚本执行控制','脚本引擎按策略放行','on'],['安装审批','新软件安装需审批','off']].map(c=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${c[0]}</div><div class="t-desc">${c[1]}</div></div><div class="toggle ${c[2]==='on'?'on':''}"></div></div>`).join('')}</div></div>
+  <div class="grid-2 mt16">
+    <div class="card"><div class="card-title flex between"><span>应用白名单</span><button class="btn btn-primary btn-sm">${I.plus} 添加</button></div>
+      <div class="table-wrap"><table class="tbl"><colgroup><col style="width:46%"><col style="width:26%"><col style="width:28%"></colgroup>
+      <thead><tr><th>应用</th><th>发布者</th><th>哈希验证</th></tr></thead>
+      <tbody>${[['Microsoft Office 365','Microsoft Corporation','已验证'],['Chrome / Edge','Google / Microsoft','已验证'],['企业 ERP 客户端','内部证书','已验证'],['WinRAR','RARLAB','已验证']].map(r=>`<tr><td style="font-weight:600">${r[0]}</td><td style="color:var(--text-2)">${r[1]}</td><td><span class="pill green">${r[2]}</span></td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><div class="card-title flex between"><span>应用黑名单</span><button class="btn btn-primary btn-sm">${I.plus} 添加</button></div>
+      <div class="table-wrap"><table class="tbl"><colgroup><col style="width:46%"><col style="width:26%"><col style="width:28%"></colgroup>
+      <thead><tr><th>应用</th><th>类别</th><th>状态</th></tr></thead>
+      <tbody>${[['TeamViewer（外联）','远程控制','已阻断'],['各类破解工具','灰色软件','已阻断'],['挖矿客户端','挖矿','已阻断'],['未知签名安装包','未知','询问']].map(r=>`<tr><td style="font-weight:600">${r[0]}</td><td style="color:var(--text-2)">${r[1]}</td><td><span class="pill ${r[2]==='已阻断'?'red':'amber'}">${r[2]}</span></td></tr>`).join('')}</tbody></table></div></div>
+  </div>`;
+}
+function rDevUsb(){
+  const ctrls=[['USB 存储管控','允许读取、禁止写入（仅受信设备可写）','on'],['USB 安全扫描','插入即扫描，命中自动隔离','on'],['蓝牙管控','配对需审批','on'],['摄像头管控','工作时段禁止','off'],['打印管控','打印行为审计 + 敏感内容阻断','on'],['截屏管控','截屏/录屏检测告警','off'],['外接显示器','HDMI 内容审计','off'],['读卡器/光驱','物理禁用','on']];
+  $('#devBody').innerHTML=`
+  <div class="card"><div class="card-title">外设管控</div><div class="grid-2">${ctrls.map(c=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${c[0]}</div><div class="t-desc">${c[1]}</div></div><div class="toggle ${c[2]==='on'?'on':''}"></div></div>`).join('')}</div></div>
+  <div class="grid-2 mt16">
+    <div class="card"><div class="card-title">设备事件</div>
+      ${[['USB 设备已插入','SanDisk 32GB · WIN-财务部-01 · 自动扫描完成，未发现威胁','1 小时前','green'],['未知蓝牙设备','配对请求被拦截 · WIN-研发部-07','2 小时前','amber'],['打印任务已审计','工资单.pdf · 3 页 · 打印机 HR-P01','4 小时前','blue'],['USB 写入被阻止','未受信 U 盘写入请求已拒绝 · MAC-设计-01','1 天前','red']].map(e=>`<div class="list-item"><span class="sev ${e[3]}"></span><div class="grow"><div style="font-size:12.5px;font-weight:600">${e[0]}</div><div style="font-size:11px;color:var(--text-3)">${e[1]} · ${e[2]}</div></div></div>`).join('')}
+    </div>
+    <div class="card"><div class="card-title">设备台账 <span class="sub">资产清点</span></div>
+      <div class="kv"><span class="k">受管 USB 设备</span><span class="v">14 台（含 3 台受信）</span></div>
+      <div class="kv"><span class="k">打印机</span><span class="v">6 台 · 全部在线</span></div>
+      <div class="kv"><span class="k">摄像头</span><span class="v">8 个 · 2 个受控</span></div>
+      <div class="kv"><span class="k">硬件变更告警</span><span class="v">2 条（内存更换）</span></div>
+      <button class="btn btn-secondary btn-sm mt12">${I.refresh} 重新清点</button></div>
+  </div>`;
+}
+function rDevDlp(){
+  $('#devBody').innerHTML=`
+  <div class="card"><div class="card-title">数据防泄漏 (DLP)</div>
+    <div class="grid-3">${[['数据防泄漏','敏感数据外发通道检测','on'],['敏感数据识别','内置 60+ 识别规则','on'],['数据分类分级','自动分级打标','on'],['加密管理','BitLocker + 文件加密策略','on'],['外发通道管控','邮件/网盘/IM/打印','on'],['DLP 水印','屏幕与打印水印','off']].map(c=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${c[0]}</div><div class="t-desc">${c[1]}</div></div><div class="toggle ${c[2]==='on'?'on':''}"></div></div>`).join('')}</div></div>
+  <div class="grid-2 mt16">
+    <div class="card"><div class="card-title">敏感数据识别规则</div>
+      <div class="table-wrap"><table class="tbl"><colgroup><col style="width:30%"><col style="width:40%"><col style="width:30%"></colgroup>
+      <thead><tr><th>类型</th><th>规则</th><th class="num">今日命中</th></tr></thead>
+      <tbody>${[['身份证号','18 位 + 校验位','12'],['银行卡号','16-19 位 Luhn','4'],['手机号','1[3-9]xxxxxxxxx','38'],['访问密钥','AK/SK 模式匹配','2'],['源代码','关键字 + 结构','0'],['客户隐私','姓名+手机号组合','7']].map(r=>`<tr><td style="font-weight:600">${r[0]}</td><td class="mono" style="font-size:11px">${r[1]}</td><td class="num">${r[2]}</td></tr>`).join('')}</tbody></table></div></div>
+    <div class="card"><div class="card-title">数据分类分级</div>
+      <div class="kv"><span class="k">一级 · 公开</span><span class="v">1,240 份</span></div>
+      <div class="kv"><span class="k">二级 · 内部</span><span class="v">8,431 份</span></div>
+      <div class="kv"><span class="k">三级 · 机密</span><span class="v">512 份</span></div>
+      <div class="kv"><span class="k">四级 · 绝密</span><span class="v">38 份</span></div>
+      <div class="progress mt12"><div class="bar" style="width:86%"></div></div>
+      <div style="font-size:11.5px;color:var(--text-3);margin-top:6px">数据资产覆盖 86% · 剩余 2,180 份待打标</div>
+      <div class="mt16" style="font-size:12px;color:var(--text-2)"><b style="color:var(--amber)">3 条告警：</b>2 份机密文档尝试外发被阻断，1 份含密钥文件被加密管控</div>
+    </div>
+  </div>`;
+}
+
+/* ---------- 漏洞与补丁 ---------- */
+function renderPatching(){
+  $('#tbTitle').textContent='漏洞与补丁管理';$('#tbCrumb').textContent=PAGE_TITLE.patching;
+  const crit=store.vulns.filter(v=>v.sev==='crit').length,high=store.vulns.filter(v=>v.sev==='high').length,patchable=store.vulns.filter(v=>v.status!=='已修复').length;
+  $('#viewInner').innerHTML=`<div class="view-fade">
+  ${pageHead('漏洞与补丁管理','资产漏洞扫描 · 补丁灰度下发 · 软件更新纳管',`<button class="btn btn-primary" id="btnVulnScan">${I.scan} 立即扫描漏洞</button>`)}
+  <div class="kpi-grid mb16">
+    <div class="card kpi"><div class="k-ico" style="background:var(--red-soft);color:var(--red)">${I.patch}</div><div><div class="k-val">${crit}</div><div class="k-lbl">严重漏洞</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:var(--amber-soft);color:var(--amber)">${I.warn}</div><div><div class="k-val">${high}</div><div class="k-lbl">高危漏洞</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:var(--accent-soft);color:var(--accent)">${I.clock}</div><div><div class="k-val">${patchable}</div><div class="k-lbl">待处理补丁</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:var(--green-soft);color:var(--green)">${I.check}</div><div><div class="k-val">${store.endpoints.filter(e=>e.risk==='low').length}/${store.endpoints.length}</div><div class="k-lbl">合规终端</div></div></div>
+  </div>
+  <div class="card"><div class="card-title flex between"><span>漏洞清单</span><div class="flex"><input placeholder="搜索 CVE / 产品…" style="width:220px" id="vulSearch"><select style="width:130px" id="vulFilter"><option>全部状态</option><option>待修复</option><option>待重启</option><option>已修复</option><option>已忽略</option></select></div></div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:15%"><col style="width:24%"><col style="width:9%"><col style="width:16%"><col style="width:16%"><col style="width:10%"><col style="width:10%"></colgroup>
+    <thead><tr><th>编号</th><th>产品</th><th>严重度</th><th>当前版本</th><th>修复版本</th><th>状态</th><th>操作</th></tr></thead>
+    <tbody id="vulRows">${store.vulns.map(v=>`<tr><td class="mono" style="font-size:11.5px">${v.id}</td><td style="font-weight:600">${esc(v.prod)}<div style="font-size:10.5px;color:var(--text-3)">${esc(v.risk)}</div></td><td><span class="pill ${v.sev==='crit'?'red':v.sev==='high'?'amber':'blue'}">${v.sev==='crit'?'严重':v.sev==='high'?'高危':'中危'}</span></td><td class="mono" style="font-size:11px">${esc(v.ver)}</td><td class="mono" style="font-size:11px">${esc(v.fix)}</td><td><span class="pill ${v.status==='已修复'?'green':v.status==='待修复'?'red':'amber'}">${v.status}</span></td><td><button class="btn btn-secondary btn-sm" data-fix="${v.id}">${v.status==='已修复'?'查看':'修复'}</button></td></tr>`).join('')}</tbody></table></div></div>
+  <div class="grid-2 mt16">
+    <div class="card"><div class="card-title">补丁管理</div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">自动下载补丁</div><div class="t-desc">从更新代理拉取，支持缓存分发</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">灰度发布</div><div class="t-desc">先 10% 终端验证再全量</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">强制重启窗口</div><div class="t-desc">每日 02:00-05:00 静默重启</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">回滚保护</div><div class="t-desc">补丁失败自动回滚上一版本</div></div><div class="toggle on"></div></div>
+    </div>
+    <div class="card"><div class="card-title">软件更新管理</div>
+      <div class="kv"><span class="k">待更新应用</span><span class="v">23 个</span></div>
+      <div class="kv"><span class="k">已过期版本</span><span class="v">7 个（含 2 个 EOL）</span></div>
+      <div class="kv"><span class="k">更新成功率</span><span class="v">98.6%</span></div>
+      <div class="kv"><span class="k">更新代理节点</span><span class="v">3 个（总部/华东/华南）</span></div>
+      <button class="btn btn-secondary btn-sm mt12">${I.refresh} 检查软件更新</button></div>
+  </div></div>`;
+  $('#btnVulnScan').onclick=()=>{const b=$('#btnVulnScan');b.disabled=true;b.innerHTML=`${I.scan} 扫描中…`;setTimeout(()=>{b.disabled=false;b.innerHTML=`${I.scan} 立即扫描漏洞`;toast('漏洞扫描完成：发现 8 个漏洞（2 严重 3 高危）','ok');audit('漏洞扫描','全资产漏洞扫描完成');},1600);};
+  $('#vulSearch').oninput=e=>filterVulns();$('#vulFilter').onchange=()=>filterVulns();
+  $$('#vulRows [data-fix]').forEach(b=>b.onclick=()=>{const v=store.vulns.find(x=>x.id===b.dataset.fix);if(v.status==='已修复')return toast('该漏洞已修复','info');confirmDlg('修复 '+v.id,'将向受影响终端灰度下发补丁 '+v.fix+'。是否继续？',()=>{v.status='待重启';save();filterVulns();toast('补丁已下发，等待重启生效','ok');audit('补丁管理',`下发 ${v.id} 补丁`);},'下发补丁','btn-primary');});
+}
+function filterVulns(){const q=($('#vulSearch').value||'').toLowerCase(),f=$('#vulFilter').value;
+  const list=store.vulns.filter(v=>(!q||(v.id+v.prod+v.risk).toLowerCase().includes(q))&&(f==='全部状态'||v.status===f));
+  $('#vulRows').innerHTML=list.map(v=>`<tr><td class="mono" style="font-size:11.5px">${v.id}</td><td style="font-weight:600">${esc(v.prod)}<div style="font-size:10.5px;color:var(--text-3)">${esc(v.risk)}</div></td><td><span class="pill ${v.sev==='crit'?'red':v.sev==='high'?'amber':'blue'}">${v.sev==='crit'?'严重':v.sev==='high'?'高危':'中危'}</span></td><td class="mono" style="font-size:11px">${esc(v.ver)}</td><td class="mono" style="font-size:11px">${esc(v.fix)}</td><td><span class="pill ${v.status==='已修复'?'green':v.status==='待修复'?'red':'amber'}">${v.status}</span></td><td><button class="btn btn-secondary btn-sm" data-fix="${v.id}">${v.status==='已修复'?'查看':'修复'}</button></td></tr>`).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text-3);padding:22px">无匹配漏洞</td></tr>';
+  $$('#vulRows [data-fix]').forEach(b=>b.onclick=()=>{const v=store.vulns.find(x=>x.id===b.dataset.fix);if(v.status==='已修复')return toast('该漏洞已修复','info');confirmDlg('修复 '+v.id,'将向受影响终端灰度下发补丁 '+v.fix+'。是否继续？',()=>{v.status='待重启';save();filterVulns();toast('补丁已下发，等待重启生效','ok');audit('补丁管理',`下发 ${v.id} 补丁`);},'下发补丁','btn-primary');});}
+</script>

@@ -1,0 +1,255 @@
+<script>
+/* ---------- 集中管理 ---------- */
+const MGM_TABS=[{id:'console',l:'控制台'},{id:'pol',l:'策略下发'},{id:'ops',l:'远程操作'},{id:'dep',l:'部署管理'},{id:'rbac',l:'租户与权限'}];
+function renderMgmt(){
+  const tab=store.tab||'console';
+  $('#tbTitle').textContent='集中管理控制台';$('#tbCrumb').textContent=PAGE_TITLE.mgmt;
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(MGM_TABS,tab,'mgmt')}</div><div id="mgmBody"></div></div>`;
+  bindTabs('#viewInner','mgmt');
+  ({console:rMgmConsole,pol:rMgmPol,ops:rMgmOps,dep:rMgmDep,rbac:rMgmRbac}[tab])();
+}
+function rMgmConsole(){
+  const online=store.endpoints.filter(e=>e.status==='online').length;
+  $('#mgmBody').innerHTML=`
+  <div class="kpi-grid mb16">
+    <div class="card kpi"><div class="k-ico" style="background:var(--accent-soft);color:var(--accent)">${I.laptop}</div><div><div class="k-val">${store.endpoints.length}</div><div class="k-lbl">受管终端</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:var(--green-soft);color:var(--green)">${I.pulse}</div><div><div class="k-val">${online}</div><div class="k-lbl">在线终端（${Math.round(online/store.endpoints.length*100)}%）</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:var(--amber-soft);color:var(--amber)">${I.server}</div><div><div class="k-val">${store.endpoints.reduce((s,e)=>s+e.apps,0).toLocaleString()}</div><div class="k-lbl">软件资产（资产清点）</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:var(--red-soft);color:var(--red)">${I.alert}</div><div><div class="k-val">${store.alerts.filter(a=>a.status!=='resolved').length}</div><div class="k-lbl">未处置告警</div></div></div>
+  </div>
+  <div class="grid-2">
+    <div class="card"><div class="card-title">终端状态分布</div><div class="chart-box"><div id="mgmEp"></div></div><div class="chart-legend" id="mgmEpLg"></div></div>
+    <div class="card"><div class="card-title">分组视图</div>
+      ${[['财务部',1,'EP-001'],['研发部',2,'EP-002,EP-006,EP-007'],['人事部',1,'EP-003'],['服务器',2,'EP-004,EP-005'],['设计部',1,'EP-008'],['移动端',2,'EP-009,EP-010'],['VDI',1,'EP-011'],['云工作负载',1,'EP-012']].map(g=>`<div class="list-item"><div style="width:34px;height:34px;border-radius:9px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">${I.server}</div><div class="grow"><div style="font-size:12.5px;font-weight:600">${g[0]}</div><div style="font-size:10.5px;color:var(--text-3)">${g[1]} 台终端 · ${g[2]}</div></div><button class="btn btn-ghost btn-sm" data-gpol="${g[0]}">策略 ${I.arrowR}</button></div>`).join('')}
+    </div>
+  </div>`;
+  svgDonut('#mgmEp',TREND.epStatus);
+  $('#mgmEpLg').innerHTML=TREND.epStatus.map(t=>`<div class="lg"><i style="background:${t.c}"></i>${t.l} ${t.v}</div>`).join('');
+  $$('#mgmBody [data-gpol]').forEach(b=>b.onclick=()=>{store.polGroup=b.dataset.gpol;go('mgmt','pol');});
+}
+function rMgmPol(){
+  const grp=store.polGroup||'研发部';
+  const templates=[['等保三级基线','适合内网办公与服务器','v2.1','87%'],['中小企业防护','开箱即用，平衡性能','v3.0','92%'],['服务器加固','服务器/数据库专用','v1.8','90%'],['终端默认','通用桌面安全','v4.2','95%']];
+  $('#mgmBody').innerHTML=`
+  <div class="grid-2 mb16">
+    <div class="card"><div class="card-title">策略模板库 <span class="sub">防策略模板</span></div>
+      <div class="grid-2" style="gap:10px">${templates.map(t=>`<div class="card hover" data-tpl="${t[0]}"><div style="font-weight:700;font-size:13.5px">${t[0]}</div><div style="font-size:11.5px;color:var(--text-3);margin:6px 0">${t[1]}</div><div class="flex between"><span class="tag">v${t[2]}</span><span class="pill green">采用率 ${t[3]}</span></div></div>`).join('')}</div>
+      <button class="btn btn-secondary btn-sm mt12">${I.plus} 新建自定义模板</button></div>
+    <div class="card"><div class="card-title">统一策略下发 <span class="sub">目标组：${grp}</span></div>
+      <div class="kv"><span class="k">目标分组</span><span class="v"><select id="polGrp" style="padding:4px 8px">${[...new Set(store.endpoints.map(e=>e.grp))].map(g=>`<option ${g===grp?'selected':''}>${g}</option>`).join('')}</select></span></div>
+      <div class="kv"><span class="k">覆盖终端</span><span class="v">${store.endpoints.filter(e=>e.grp===grp).length} 台</span></div>
+      <div class="kv"><span class="k">当前策略</span><span class="v">${templates[1][0]} · v3.0</span></div>
+      <div class="kv"><span class="k">上次下发</span><span class="v">2 小时前 · 全部生效</span></div>
+      <button class="btn btn-primary mt12" id="btnDeploy">${I.upload} 下发当前策略到 ${grp}</button>
+      <div id="deployBox" class="mt12"></div></div>
+  </div>
+  <div class="card"><div class="card-title">策略配置 <span class="sub">${FEATURES.reduce((n,g)=>n+g.items.length,0)} 项能力统一开关</span></div>
+    <div id="polMatrix" style="max-height:480px;overflow-y:auto;padding-right:6px">${FEATURES.map(g=>`<div class="mb12"><div class="flex mb8" style="gap:8px"><b style="font-size:13px">${g.g}</b><span class="pill blue">${g.items.filter(i=>i[2]).length}/${g.items.length}</span></div>
+    <div class="grid-3" style="gap:6px">${g.items.map((it,i)=>`<div class="tgl-row" style="border:1px solid var(--border);padding:7px 10px" data-feat="${esc(g.g)}|${esc(it[0])}"><div class="t-info"><div class="t-title" style="font-size:12px">${it[0]}</div></div><div class="toggle ${it[2]?'on':''}"></div></div>`).join('')}</div></div>`).join('')}</div></div>`;
+  $('#polGrp').onchange=e=>{store.polGroup=e.target.value;rMgmPol();};
+  $('#btnDeploy').onclick=()=>{const b=$('#btnDeploy');b.disabled=true;const box=$('#deployBox');box.innerHTML=`<div class="progress"><div class="bar striped" style="width:8%"></div></div><div style="font-size:11.5px;color:var(--text-3);margin-top:6px" id="depTxt">正在向 ${grp} 终端下发…</div>`;
+    const bar=box.querySelector('.bar');let p=0;const iv=setInterval(()=>{p+=9+Math.random()*14;if(p>=100){p=100;clearInterval(iv);b.disabled=false;box.innerHTML=`<div class="flex" style="gap:8px;color:var(--green);font-size:12.5px;font-weight:600">${I.check} 策略已下发：全部 ${store.endpoints.filter(e=>e.grp===grp).length} 台终端生效</div>`;toast('策略下发完成','ok');audit('策略下发',`向 ${grp} 下发统一策略`);}bar.style.width=p+'%';$('#depTxt').textContent=`正在向 ${grp} 终端下发… ${Math.floor(p)}%`;},260);};
+  $$('#mgmBody [data-tpl]').forEach(c=>c.onclick=()=>{toast('已应用模板：「'+c.dataset.tpl+'」','ok');audit('策略模板',`应用模板 ${c.dataset.tpl}`);});
+  $$('#mgmBody [data-feat]').forEach(r=>r.onclick=()=>{const t=r.querySelector('.toggle');t.classList.toggle('on');toast('策略项已更新（待下发）','info');});
+}
+function rMgmOps(){
+  $('#mgmBody').innerHTML=`
+  <div class="grid-3 mb16">
+    ${[['远程锁定',I.lock,'锁定指定终端屏幕并禁止解锁','#f5b82e'],['远程擦除',I.erase,'安全擦除终端数据（可选固件级）','#f44b5a'],['远程卸载',I.trash,'受控移除代理（需双人授权）','#8f8f8f'],['远程部署',I.download,'向新终端静默部署代理','#4cc2ff'],['终端定位',I.target,'定位终端当前地理位置','#2fd8c7'],['计划任务',I.clock,'编排定时扫描/补丁/报表','#35c759']].map(x=>`<div class="card hover" data-op="${x[0]}"><div class="qc-ico" style="width:40px;height:40px;border-radius:10px;background:color-mix(in srgb,${x[3]} 16%,transparent);color:${x[3]};display:flex;align-items:center;justify-content:center;margin-bottom:10px">${x[1]}</div><div style="font-weight:700;font-size:13.5px">${x[0]}</div><div style="font-size:11.5px;color:var(--text-3);margin-top:4px">${x[2]}</div></div>`).join('')}
+  </div>
+  <div class="card"><div class="card-title">远程操作记录</div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:13%"><col style="width:18%"><col style="width:16%"><col style="width:14%"><col style="width:13%"><col style="width:26%"></colgroup>
+    <thead><tr><th>时间</th><th>操作</th><th>目标终端</th><th>执行人</th><th>状态</th><th>结果</th></tr></thead>
+    <tbody>${[['09:20:11','终端隔离','WIN-研发部-07','zhang.wei','已完成','已隔离，网络断开'],['08:51:02','阻断 C2','WIN-研发部-07','系统自动','已完成','3 个会话已终止'],['07:32:44','远程锁定','MAC-设计-01','li.na','已完成','已锁定 30 分钟'],['昨天','补丁下发','全部服务器','系统自动','已完成','12 台重启完成'],['昨天','远程擦除（演练）','M-运营-05','admin','已完成','数据擦除验证通过']].map(r=>`<tr><td style="color:var(--text-3);font-size:11.5px">${r[0]}</td><td style="font-weight:600">${r[1]}</td><td class="mono" style="font-size:11px">${r[2]}</td><td>${r[3]}</td><td><span class="pill green">${r[4]}</span></td><td style="font-size:11.5px">${r[5]}</td></tr>`).join('')}</tbody></table></div></div>`;
+  $$('#mgmBody [data-op]').forEach(c=>c.onclick=()=>{const op=c.dataset.op;const ep=store.endpoints.find(e=>e.status==='online')||store.endpoints[0];
+    confirmDlg(op,'将对该操作发起双人授权审批，并下发到目标终端。是否继续？',()=>{toast(`已提交「${op}」审批，等待授权…`,'info');audit('远程操作',`发起 ${op}`);},'发起审批','btn-primary');});
+}
+function rMgmDep(){
+  $('#mgmBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">终端部署 <span class="sub">远程部署 / 静默安装</span></div>
+      <p style="font-size:12.5px;color:var(--text-2)">生成安装包后，可静默部署到 Windows / macOS / Linux / 移动端，自动加域并应用分组策略。</p>
+      <div class="grid-2 mt12" style="gap:10px">
+        ${[['Windows 安装包','.exe · 静默安装','#4cc2ff',I.download],['macOS 安装包','.pkg · 签名','#8f8f8f',I.download],['Linux 安装包','.deb/.rpm','#f5b82e',I.download],['移动端','iOS/Android MDM','#35c759',I.download]].map(x=>`<div class="card hover" data-pkg="${x[0]}"><div class="qc-ico" style="width:36px;height:36px;border-radius:9px;background:color-mix(in srgb,${x[2]} 16%,transparent);color:${x[2]};display:flex;align-items:center;justify-content:center;margin-bottom:8px">${x[3]}</div><div style="font-size:12.5px;font-weight:700">${x[0]}</div><div style="font-size:10.5px;color:var(--text-3)">${x[1]}</div></div>`).join('')}
+      </div>
+      <button class="btn btn-primary mt12" id="btnGenPkg">${I.gear} 生成部署安装包（演示）</button>
+      <div class="mt12" style="font-size:11.5px;color:var(--text-3)">安装方式：<span class="mono">DoubaoSecuritySetup.exe /S /GROUP=财务部 /SERVER=https://sec.doubao.local</span></div>
+    </div>
+    <div class="card"><div class="card-title">部署进度</div>
+      <div class="table-wrap"><table class="tbl"><colgroup><col style="width:22%"><col style="width:18%"><col style="width:20%"><col style="width:18%"><col style="width:22%"></colgroup>
+      <thead><tr><th>批次</th><th>终端数</th><th>进度</th><th>成功</th><th>状态</th></tr></thead>
+      <tbody>${[['批次 2026-09-15-1','8','100%','8','已完成'],['批次 2026-09-14-3','12','100%','12','已完成'],['批次 2026-09-13-2','5','60%','3','进行中'],['批次 2026-09-12-1','16','100%','15','1 失败']].map(r=>`<tr><td class="mono" style="font-size:11px">${r[0]}</td><td class="num">${r[1]}</td><td><div class="progress" style="width:80px"><div class="bar" style="width:${r[2]};background:${r[4]==='进行中'?'var(--amber)':'var(--green)'}"></div></div></td><td class="num">${r[3]}</td><td><span class="pill ${r[4]==='1 失败'?'red':r[4]==='进行中'?'amber':'green'}">${r[4]}</span></td></tr>`).join('')}</tbody></table></div>
+      <div class="mt12" style="font-size:11.5px;color:var(--text-3)">更新代理节点：总部 / 华东 / 华南 · 缓存更新命中率 82%</div>
+    </div>
+  </div>`;
+  $$('#mgmBody [data-pkg]').forEach(c=>c.onclick=()=>toast('安装包已加入生成队列（演示）','info'));
+  $('#btnGenPkg').onclick=()=>{const b=$('#btnGenPkg');b.innerHTML=`${I.refresh} 生成中…`;setTimeout(()=>{b.innerHTML=`${I.gear} 生成部署安装包（演示）`;toast('已生成部署安装包清单','ok');audit('远程部署','生成部署安装包');},1200);};
+}
+function rMgmRbac(){
+  $('#mgmBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">角色权限 (RBAC)</div>
+      <div class="table-wrap"><table class="tbl"><colgroup><col style="width:26%"><col style="width:38%"><col style="width:20%"><col style="width:16%"></colgroup>
+      <thead><tr><th>角色</th><th>权限范围</th><th>成员</th><th>状态</th></tr></thead>
+      <tbody>${[['超级管理员','全部功能 + 授权审批','1','启用'],['安全运营','告警处置、隔离、狩猎','2','启用'],['审计员','只读 + 审计日志','1','启用'],['只读管理员','报表与查看','1','启用'],['租户管理员','仅本租户','2','启用']].map(r=>`<tr><td style="font-weight:600">${r[0]}</td><td style="font-size:11.5px;color:var(--text-2)">${r[1]}</td><td class="num">${r[2]}</td><td><span class="pill green">${r[3]}</span></td></tr>`).join('')}</tbody></table></div>
+      <button class="btn btn-secondary btn-sm mt12">${I.plus} 新建角色</button></div>
+    <div class="card"><div class="card-title">登录会话与身份安全</div>
+      <div class="table-wrap"><table class="tbl"><colgroup><col style="width:20%"><col style="width:18%"><col style="width:20%"><col style="width:14%"><col style="width:28%"></colgroup>
+      <thead><tr><th>用户</th><th>角色</th><th>来源 IP</th><th>状态</th><th>登录方式</th></tr></thead>
+      <tbody>${store.sessions.map(s=>`<tr><td style="font-weight:600">${esc(s.user)}</td><td style="font-size:11px">${esc(s.role)}</td><td class="mono" style="font-size:11px">${s.ip}</td><td><span class="pill ${s.status==='在线'?'green':s.status==='已锁定'?'red':'gray'}">${s.status}</span></td><td style="font-size:11px">${s.mfa?'<span class="pill green" style="font-size:10px">MFA 已通过</span>':'<span class="pill red" style="font-size:10px">无 MFA</span>'} ${esc(s.device)}</td></tr>`).join('')}</tbody></table></div>
+      <div class="grid-2 mt12" style="gap:10px">
+        <div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">SSO 单点登录</div><div class="t-desc">OIDC / SAML 对接</div></div><div class="toggle on"></div></div>
+        <div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">强制 MFA</div><div class="t-desc">所有管理员登录</div></div><div class="toggle on"></div></div>
+        <div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">AD/LDAP 集成</div><div class="t-desc">同步组织架构</div></div><div class="toggle on"></div></div>
+        <div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">多租户隔离</div><div class="t-desc">数据与策略隔离</div></div><div class="toggle on"></div></div>
+      </div></div>
+  </div>`;
+}
+
+/* ---------- 设置 ---------- */
+const SET_TABS=[{id:'gen',l:'通用'},{id:'prot',l:'自我保护'},{id:'upd',l:'更新'},{id:'int',l:'集成'},{id:'about',l:'关于'}];
+function renderSettings(){
+  const tab=store.tab||'gen';
+  $('#tbTitle').textContent='设置';$('#tbCrumb').textContent=PAGE_TITLE.settings;
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(SET_TABS,tab,'settings')}</div><div id="setBody"></div></div>`;
+  bindTabs('#viewInner','settings');
+  ({gen:rSetGen,prot:rSetProt,upd:rSetUpd,int:rSetInt,about:rSetAbout}[tab])();
+}
+function rSetGen(){
+  $('#setBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">外观</div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">主题</div><div class="t-desc">跟随 Win11 风格</div></div>
+        <div class="flex" style="gap:8px"><select id="setTheme" style="width:130px"><option value="dark" ${store.theme==='dark'?'selected':''}>深色</option><option value="light" ${store.theme==='light'?'selected':''}>浅色</option></select></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">启动时最小化到托盘</div><div class="t-desc">常驻系统托盘静默保护</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">开机自启</div><div class="t-desc">登录后自动加载防护</div></div><div class="toggle on"></div></div>
+    </div>
+    <div class="card"><div class="card-title">通知</div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">威胁告警通知</div><div class="t-desc">邮件 / 短信 / 飞书 / App 推送</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">扫描完成通知</div><div class="t-desc">仅发现威胁时通知</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">更新通知</div><div class="t-desc">病毒库与版本更新</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">周报摘要</div><div class="t-desc">每周一 09:00 推送</div></div><div class="toggle off"></div></div>
+    </div>
+  </div>
+  <div class="card mt16"><div class="card-title">数据与隐私</div>
+    <div class="tgl-row"><div class="t-info"><div class="t-title">遥测数据收集</div><div class="t-desc">向云端提交威胁情报（不含个人文件内容）</div></div><div class="toggle on"></div></div>
+    <div class="tgl-row"><div class="t-info"><div class="t-title">云查杀</div><div class="t-desc">文件哈希与信誉查询</div></div><div class="toggle on"></div></div>
+    <div class="tgl-row"><div class="t-info"><div class="t-title">改进计划</div><div class="t-desc">帮助优化检测模型</div></div><div class="toggle off"></div></div></div>`;
+  $('#setTheme').onchange=e=>{store.theme=e.target.value;save();applyTheme();};
+}
+function rSetProt(){
+  $('#setBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">自我保护 <span class="sub">抵御恶意软件卸载与篡改</span></div>
+      ${[['自我保护',store.selfProtect,'阻止终止进程 / 删除文件 / 修改注册表','selfProtect'],['防卸载','受控卸载需管理员 + 双人授权','on'],['内核篡改防护','驱动回调与签名校验','on'],['引导区保护','MBR / UEFI 启动完整性','on'],['注册表保护','防护相关键值只读','on'],['文件保护','安装目录防篡改','on']].map(c=>`<div class="tgl-row"><div class="t-info"><div class="t-title">${c[0]}</div><div class="t-desc">${c[1]}</div></div>${c[3]?`<div class="toggle ${store[c[3]]?'on':''}" data-t="${c[3]}"></div>`:`<div class="toggle ${c[2]==='on'?'on':''}"></div>`}</div>`).join('')}
+    </div>
+    <div class="card"><div class="card-title">安全测试</div>
+      <p style="font-size:12.5px;color:var(--text-2)">使用 EICAR 标准测试文件验证检测、隔离、恢复全链路是否正常。</p>
+      <div class="flex mt12" style="gap:8px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="setEicar">${I.zap} 生成 EICAR 测试文件</button>
+        <button class="btn btn-secondary" data-scan="demo">${I.scan} 扫描测试</button>
+        <button class="btn btn-secondary">${I.radar} 沙箱分析测试</button>
+      </div>
+      <div class="mt16" style="font-size:11.5px;color:var(--text-3)">说明：EICAR 为标准防病毒测试串，本身无毒无害，仅用于验证防护链路。</div>
+    </div>
+  </div>`;
+  $('#setEicar').onclick=genEicar;
+  $$('#setBody [data-scan]').forEach(b=>b.onclick=()=>startScan('demo'));
+  $$('#setBody .toggle[data-t]').forEach(t=>t.onclick=()=>{const k=t.dataset.t;store[k]=!store[k];t.classList.toggle('on',store[k]);save();audit('自我保护',`${k} ${store[k]?'开启':'关闭'}`);toast('已更新','ok');});
+}
+function rSetUpd(){
+  $('#setBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">更新状态</div>
+      <div class="kv"><span class="k">产品版本</span><span class="v">豆包安全卫士 3.4.210（正式版）</span></div>
+      <div class="kv"><span class="k">引擎版本</span><span class="v">${store.engineVer}</span></div>
+      <div class="kv"><span class="k">病毒库版本</span><span class="v">${store.updateVer}（刚刚更新）</span></div>
+      <div class="kv"><span class="k">特征数量</span><span class="v">${store.sigCount.toLocaleString()}</span></div>
+      <div class="kv"><span class="k">更新通道</span><span class="v">正式通道（Beta 可选）</span></div>
+      <button class="btn btn-primary mt12" id="btnCheckUpd">${I.refresh} 检查更新</button></div>
+    <div class="card"><div class="card-title">更新分发 <span class="sub">更新代理 · 缓存更新</span></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">更新代理</div><div class="t-desc">内网分发，节省外网带宽</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">缓存更新</div><div class="t-desc">就近缓存，加速终端升级</div></div><div class="toggle on"></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">带宽控制</div><div class="t-desc">升级限速 50 Mbps / 终端</div></div><div class="toggle off"></div></div>
+      <div class="kv mt12"><span class="k">分发节点</span><span class="v">3 个 · 全部健康</span></div>
+      <div class="kv"><span class="k">本月分发量</span><span class="v">8.4 GB</span></div></div>
+  </div>`;
+  $('#btnCheckUpd').onclick=()=>{const b=$('#btnCheckUpd');b.innerHTML=`${I.refresh} 检查中…`;setTimeout(()=>{b.innerHTML=`${I.check} 已是最新版本`;toast('当前已是最新版本','ok');audit('软件更新','检查更新：已是最新');setTimeout(()=>b.innerHTML=`${I.refresh} 检查更新`,2200);},1300);};
+}
+function rSetInt(){
+  const ints=[['SIEM 集成','Splunk / QRadar / 日志易 · 事件实时推送','已连接'],['SOAR 集成','自动化剧本联动 · 编排响应','已连接'],['Syslog 转发','udp://10.10.5.10:514 · TLS 加密','已连接'],['REST API','v3 全量接口 · API Key 轮换 30 天','已连接'],['AD/LDAP 防护集成','域控联动 · 身份威胁检测','已连接'],['SSO 单点登录','OIDC · 企业 IdP','已连接'],['多因素认证','TOTP / 短信 / 扫码','已启用'],['邮件网关联动','Exchange / 网易企业邮','已连接']];
+  $('#setBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">安全集成</div>
+      ${ints.map(x=>`<div class="tgl-row"><div class="t-info"><div class="t-title">${x[0]}</div><div class="t-desc">${x[1]}</div></div><span class="pill green">${x[2]}</span></div>`).join('')}
+      <button class="btn btn-secondary btn-sm mt12" id="btnTestInt">${I.zap} 测试全部连接</button>
+      <div id="intRes" class="mt12"></div></div>
+    <div class="card"><div class="card-title">Syslog 配置</div>
+      <div class="flex col" style="gap:10px">
+        <div><label style="font-size:12px;color:var(--text-3)">服务器地址</label><input value="udp://10.10.5.10:514" style="width:100%;margin-top:4px"></div>
+        <div><label style="font-size:12px;color:var(--text-3)">事件级别</label><div class="flex mt4" style="gap:6px;flex-wrap:wrap">${['严重','高危','中危','低危','信息'].map(s=>`<span class="stat-chip ${s==='中危'?'active':''}" style="cursor:pointer">${s}</span>`).join('')}</div></div>
+        <div><label style="font-size:12px;color:var(--text-3)">REST API 密钥</label><div class="input-group mt4"><input value="ds_api_9f3a...e21c" class="mono"><button class="btn btn-secondary btn-sm">${I.copy} 复制</button></div></div>
+        <div><label style="font-size:12px;color:var(--text-3)">Webhook (SOAR)</label><input value="https://soar.corp.local/webhook/doubao" style="width:100%;margin-top:4px"></div>
+      </div></div>
+  </div>`;
+  $('#btnTestInt').onclick=()=>{const r=$('#intRes');r.innerHTML=`<div class="progress"><div class="bar striped" style="width:30%"></div></div>`;setTimeout(()=>{r.innerHTML=`<div class="flex" style="gap:6px;flex-wrap:wrap;font-size:12px">${ints.map(i=>`<span class="pill green">${i[0]} ✓</span>`).join('')}</div>`;toast('全部 8 项集成连接正常','ok');audit('集成测试','测试全部安全集成连接');},1100);};
+}
+function rSetAbout(){
+  $('#setBody').innerHTML=`
+  <div class="card" style="text-align:center;padding:36px">
+    <div style="width:72px;height:72px;margin:0 auto 14px;color:var(--accent)">${I.shieldck}</div>
+    <h2 style="font-size:19px">DEPK Security Assistant <span class="tag">Windows 版</span></h2>
+    <div style="color:var(--text-3);font-size:12.5px;margin-top:6px">版本 3.4.210 (64-bit) · 引擎 ${store.engineVer} · 病毒库 ${store.updateVer}</div>
+    <div style="color:var(--text-3);font-size:11.5px;margin-top:4px">© 2026 DEPK Security · 本机安全助手（本地引擎真实可用）</div>
+    <div class="flex" style="justify-content:center;gap:10px;margin-top:18px">
+      <button class="btn btn-secondary btn-sm">${I.check} 运行自检</button>
+      <button class="btn btn-secondary btn-sm">${I.download} 导出诊断信息</button>
+      <button class="btn btn-secondary btn-sm">${I.link} 开源组件</button>
+    </div>
+  </div>
+  <div class="grid-3 mt16">
+    <div class="card"><div class="card-title">能力总览</div>
+      <div class="k-val" style="font-size:26px">${FEATURES.reduce((n,g)=>n+g.items.length,0)}</div><div class="k-lbl" style="font-size:12px;color:var(--text-3)">项安全能力已纳入统一策略</div></div>
+    <div class="card"><div class="card-title">覆盖平台</div><div class="k-val" style="font-size:26px">6</div><div class="k-lbl" style="font-size:12px;color:var(--text-3)">Windows / macOS / Linux / 移动 / 容器 / VDI</div></div>
+    <div class="card"><div class="card-title">MITRE 覆盖</div><div class="k-val" style="font-size:26px">87%</div><div class="k-lbl" style="font-size:12px;color:var(--text-3)">14 战术 · 87 技术映射</div></div>
+  </div>
+  <div class="card mt16"><div class="card-title">全部功能索引</div>
+    <div class="flex" style="flex-wrap:wrap;gap:8px">${FEATURES.map(g=>`<span class="pill blue">${g.g} (${g.items.length})</span>`).join('')}</div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:10px">以上能力均已映射到「集中管理 → 策略下发」中的统一策略矩阵，可按分组一键下发。</div></div>`;
+}
+
+/* ================= 主渲染 ================= */
+function renderView(){
+  const t0=performance.now();
+  ({dashboard:renderDashboard,protection:renderProtection,network:renderNetwork,device:renderDevice,patching:renderPatching,edr:renderEDR,local:renderLocal,threat:renderThreat,compliance:renderCompliance,mgmt:renderMgmt,settings:renderSettings}[store.page]||renderDashboard)();
+  renderNav();updateStatus();
+}
+function updateStatus(){
+  const un=store.alerts.filter(a=>a.status!=='resolved').length;
+  const pill=$('#statusPill');const txt=$('#statusPillTxt');
+  if(un>0){pill.classList.add('warn');txt.textContent=`${un} 项待处置`;}
+  else{pill.classList.remove('warn');txt.textContent='已保护';}
+}
+function render(){renderView();}
+
+/* ================= 启动 ================= */
+function init(){
+  load();idb.open().then(loadQuar).catch(()=>{});
+  applyTheme();
+  $('#btnTheme').onclick=()=>{store.theme=store.theme==='dark'?'light':'dark';save();applyTheme();};
+  $('#btnNotif').onclick=()=>showNotifs();
+  $('#btnScanNow').onclick=()=>startScan('quick');
+  if(REAL&&window.depk.onWatchEvent){window.depk.onWatchEvent(d=>{store.watchEvents.unshift(d);if(store.watchEvents.length>200)store.watchEvents.length=200;if(store.page==='local'&&store.tab==='watch')renderLocal();});}
+  if(store.audit.length===0){audit('系统启动','DEPK Security Assistant 初始化完成');audit('登录','管理员通过 MFA 登录控制台');}
+  renderView();
+  setTimeout(()=>{toast('欢迎使用 DEPK Security Assistant，您的设备已受到保护','ok');},600);
+}
+function showNotifs(){
+  modal(`<div style="max-height:420px;overflow-y:auto">${store.notifs.map(n=>`<div class="notif-item"><div class="ni-ico" style="background:${n.c==='red'?'var(--red-soft)':n.c==='amber'?'var(--amber-soft)':'var(--accent-soft)'};color:${n.c==='red'?'var(--red)':n.c==='amber'?'var(--amber)':'var(--accent)'}">${I[n.icon]}</div>
+  <div><div style="font-size:13px;font-weight:600">${esc(n.title)}</div><div style="font-size:11.5px;color:var(--text-3);margin-top:2px">${esc(n.desc)}</div><div style="font-size:10.5px;color:var(--text-4);margin-top:4px">${relT(n.t)}</div></div></div>`).join('')}</div>`,
+  {title:'通知中心 ('+store.notifs.length+')',okTxt:'全部标为已读',showCancel:false,onOk:null});
+}
+init();
+</script>
+</body>
+</html>

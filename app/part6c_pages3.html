@@ -1,0 +1,152 @@
+<script>
+/* ---------- EDR 中心 ---------- */
+const EDR_TABS=[{id:'ep',l:'终端列表'},{id:'alert',l:'告警中心',count:null},{id:'tl',l:'事件时间线'},{id:'hunt',l:'威胁狩猎'},{id:'resp',l:'响应动作'}];
+function renderEDR(){
+  const tab=store.tab||'ep';
+  $('#tbTitle').textContent='端点检测与响应 (EDR)';$('#tbCrumb').textContent=PAGE_TITLE.edr;
+  const unRes=store.alerts.filter(a=>a.status!=='resolved').length;
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(EDR_TABS.map(t=>({...t,count:t.id==='alert'?unRes:t.count})),tab,'edr')}</div><div id="edrBody"></div></div>`;
+  bindTabs('#viewInner','edr');
+  ({ep:rEdrEp,alert:rEdrAlert,tl:rEdrTl,hunt:rEdrHunt,resp:rEdrResp}[tab])();
+}
+function rEdrEp(){
+  const q=store.epQ||'';const flt=store.epF||'全部';
+  $('#edrBody').innerHTML=`
+  <div class="flex mb16" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div class="flex" style="gap:8px;flex-wrap:wrap">
+      <span class="stat-chip" style="border-color:var(--border-2)">${I.shieldck} 在线 <b style="color:var(--green)">${store.endpoints.filter(e=>e.status==='online').length}</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">${I.pulse} 高危 <b style="color:var(--red)">${store.endpoints.filter(e=>e.risk==='high').length}</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">${I.server} 服务器 <b>${store.endpoints.filter(e=>e.type==='服务器').length}</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">${I.cloud} 云/容器 <b>${store.endpoints.filter(e=>['云主机','容器节点'].includes(e.type)).length}</b></span>
+    </div>
+    <div class="flex" style="gap:8px"><input placeholder="搜索终端…" id="epSearch" value="${esc(q)}" style="width:200px"><select id="epFilter"><option ${flt==='全部'?'selected':''}>全部</option><option ${flt==='在线'?'selected':''}>在线</option><option ${flt==='离线'?'selected':''}>离线</option><option ${flt==='高危'?'selected':''}>高危</option><option ${flt==='Windows'?'selected':''}>Windows</option><option ${flt==='Linux'?'selected':''}>Linux</option><option ${flt==='移动端'?'selected':''}>移动端</option></select></div>
+  </div>
+  <div class="table-wrap"><table class="tbl"><colgroup><col style="width:15%"><col style="width:17%"><col style="width:12%"><col style="width:8%"><col style="width:9%"><col style="width:9%"><col style="width:8%"><col style="width:9%"><col style="width:13%"></colgroup>
+  <thead><tr><th>终端名称</th><th>操作系统</th><th>IP 地址</th><th>状态</th><th>风险</th><th>代理版本</th><th>分组</th><th>上次同步</th><th>操作</th></tr></thead>
+  <tbody>${store.endpoints.filter(e=>(!q||e.name.toLowerCase().includes(q.toLowerCase()))&&(flt==='全部'||(flt==='在线'&&e.status==='online')||(flt==='离线'&&e.status==='offline')||(flt==='高危'&&e.risk==='high')||(flt==='Windows'&&e.os.startsWith('Windows'))||(flt==='Linux'&&e.os.includes('CentOS')||e.os.includes('Ubuntu'))||(flt==='移动端'&&e.type==='BYOD'))).map(e=>`
+  <tr><td style="font-weight:600">${e.name} <span class="tag">${e.type}</span></td><td style="font-size:11.5px">${esc(e.os)}</td><td class="mono" style="font-size:11px">${e.ip}</td>
+  <td><span class="pill ${e.status==='online'?'green':'gray'}">${e.status==='online'?'在线':'离线'}</span>${e.isolated?`<span class="pill red mt8">已隔离</span>`:''}</td>
+  <td><span class="pill ${e.risk==='low'?'green':e.risk==='med'?'amber':'red'}">${e.risk==='low'?'低':e.risk==='med'?'中':'高'}</span></td>
+  <td class="mono" style="font-size:11px">${e.ver}</td><td style="font-size:11.5px">${esc(e.grp)}</td><td style="color:var(--text-3);font-size:11.5px">${e.last}</td>
+  <td><div class="tbl-actions"><button class="btn btn-ghost btn-sm" data-epinfo="${e.id}" title="详情">${I.eye}</button><button class="btn btn-ghost btn-sm" data-episo="${e.id}" title="${e.isolated?'解除隔离':'隔离'}">${e.isolated?I.restore:I.lock}</button><button class="btn btn-ghost btn-sm" data-eptl="${e.id}" title="时间线">${I.pulse}</button></div></td></tr>`).join('')}</tbody></table></div>
+  <div class="flex mt12" style="font-size:12px;color:var(--text-3)">点击图标：查看详情 · 隔离/解除隔离 · 事件时间线</div>`;
+  $('#epSearch').oninput=e=>{store.epQ=e.target.value;rEdrEp();};
+  $('#epFilter').onchange=e=>{store.epF=e.target.value;rEdrEp();};
+  $$('#edrBody [data-epinfo]').forEach(b=>b.onclick=()=>{const e=store.endpoints.find(x=>x.id===b.dataset.epinfo);showEpInfo(e);});
+  $$('#edrBody [data-episo]').forEach(b=>b.onclick=()=>{const e=store.endpoints.find(x=>x.id===b.dataset.episo);e.isolated=!e.isolated;audit('终端隔离',`${e.isolated?'隔离':'解除隔离'} ${e.name}`);toast(`${e.name} 已${e.isolated?'隔离':'解除隔离'}`,'ok');rEdrEp();});
+  $$('#edrBody [data-eptl]').forEach(b=>b.onclick=()=>{store.epTl=b.dataset.eptl;go('edr','tl');});
+}
+function showEpInfo(e){
+  modal(`<div class="flex" style="gap:16px;align-items:center;margin-bottom:14px"><div style="width:52px;height:52px;border-radius:14px;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center">${I.laptop}</div>
+  <div><div style="font-size:16px;font-weight:700">${esc(e.name)}</div><div style="font-size:12px;color:var(--text-3)">${esc(e.os)} · ${e.ip} · 分组：${esc(e.grp)}</div></div>
+  <span class="pill ${e.status==='online'?'green':'gray'}" style="margin-left:auto">${e.status==='online'?'在线':'离线'}</span></div>
+  <div class="grid-2" style="gap:6px 20px">
+    ${[['主机型号',e.model],['CPU',e.cpu],['内存',e.mem],['磁盘',e.disk],['已装应用',e.apps+' 个'],['代理版本',e.ver],['风险等级',e.risk==='low'?'低':'中/高'],['最近同步',e.last],['隔离状态',e.isolated?'已隔离':'正常'],['数据加密','BitLocker 已启用']].map(x=>`<div class="kv" style="border-bottom:1px solid var(--border)"><span class="k">${x[0]}</span><span class="v">${esc(x[1])}</span></div>`).join('')}
+  </div>
+  <div class="card-title mt16">关联告警 (${store.alerts.filter(a=>a.ep===e.name).length})</div>
+  ${store.alerts.filter(a=>a.ep===e.name).slice(0,3).map(a=>`<div class="alert-row ${a.sev}" style="margin-bottom:6px"><span class="sev ${a.sev}"></span><div class="grow"><div style="font-size:12.5px;font-weight:600">${esc(a.title)}</div><div style="font-size:11px;color:var(--text-3)">${relT(a.time)} · ${esc(a.tech)}</div></div><span class="pill ${a.status==='resolved'?'green':'blue'}">${a.status==='resolved'?'已处置':'处理中'}</span></div>`).join('')||'<div style="color:var(--text-3);font-size:12px">无关联告警</div>'}
+  <div class="flex mt16" style="justify-content:flex-end;gap:8px"><button class="btn btn-secondary btn-sm">${I.download} 导出取证包</button><button class="btn btn-danger btn-sm">${e.isolated?I.restore+' 解除隔离':I.lock+' 隔离终端'}</button></div>`,
+  {title:'终端详情',okTxt:'关闭',showCancel:false,onOk:null});
+}
+function rEdrAlert(){
+  const unRes=store.alerts.filter(a=>a.status!=='resolved').length;
+  $('#edrBody').innerHTML=`
+  <div class="flex mb16" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div class="flex" style="gap:8px;flex-wrap:wrap">
+      <span class="stat-chip" style="border-color:var(--border-2)">未处置 <b style="color:var(--amber)">${unRes}</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">严重 <b style="color:var(--red)">${store.alerts.filter(a=>a.sev==='crit'&&a.status!=='resolved').length}</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">高危 <b style="color:#ff7a45">${store.alerts.filter(a=>a.sev==='high'&&a.status!=='resolved').length}</b></span>
+      <span class="stat-chip" style="border-color:var(--border-2)">自动遏制命中 <b style="color:var(--green)">${store.alerts.filter(a=>a.chain).length}</b></span>
+    </div>
+    <div class="flex" style="gap:8px"><select id="alFilter" style="width:140px"><option>全部状态</option><option>未处置</option><option>已处置</option></select><select id="alSev" style="width:120px"><option>全部级别</option><option>严重</option><option>高危</option><option>中危</option></select></div>
+  </div>
+  <div id="alList">${store.alerts.map(a=>`<div class="alert-row ${a.sev}" data-al="${a.id}"><span class="sev ${a.sev}"></span>
+    <div class="grow"><div style="font-weight:600;font-size:13.5px">${esc(a.title)}</div>
+    <div style="font-size:11.5px;color:var(--text-3)">${esc(a.ep)} · ${esc(a.tech)} · ${esc(a.tactic)} · ${relT(a.time)}</div></div>
+    <div class="attr-map">${a.techs.map(t=>`<span class="a">${t}</span>`).join('')}</div>
+    <span class="pill ${a.status==='resolved'?'green':a.sev==='crit'?'red':a.sev==='high'?'amber':'blue'}" style="margin-left:10px">${a.status==='resolved'?'已处置':a.sev==='crit'?'严重':a.sev==='high'?'高危':'中危'}</span></div>`).join('')}</div>`;
+  $$('#edrBody [data-al]').forEach(el=>el.onclick=()=>showAlert(store.alerts.find(a=>a.id===el.dataset.al)));
+  $('#alFilter').onchange=e=>filterAlerts();$('#alSev').onchange=()=>filterAlerts();
+}
+function filterAlerts(){const f=$('#alFilter').value,s=$('#alSev').value;
+  const list=store.alerts.filter(a=>(f==='全部状态'||(f==='未处置'&&a.status!=='resolved')||(f==='已处置'&&a.status==='resolved'))&&(s==='全部级别'||(s==='严重'&&a.sev==='crit')||(s==='高危'&&a.sev==='high')||(s==='中危'&&a.sev==='med')));
+  $('#alList').innerHTML=list.map(a=>`<div class="alert-row ${a.sev}" data-al="${a.id}"><span class="sev ${a.sev}"></span>
+    <div class="grow"><div style="font-weight:600;font-size:13.5px">${esc(a.title)}</div>
+    <div style="font-size:11.5px;color:var(--text-3)">${esc(a.ep)} · ${esc(a.tech)} · ${esc(a.tactic)} · ${relT(a.time)}</div></div>
+    <div class="attr-map">${a.techs.map(t=>`<span class="a">${t}</span>`).join('')}</div>
+    <span class="pill ${a.status==='resolved'?'green':a.sev==='crit'?'red':a.sev==='high'?'amber':'blue'}" style="margin-left:10px">${a.status==='resolved'?'已处置':a.sev==='crit'?'严重':a.sev==='high'?'高危':'中危'}</span></div>`).join('')||'<div class="empty">无匹配告警</div>';
+  $$('#alList [data-al]').forEach(el=>el.onclick=()=>showAlert(store.alerts.find(a=>a.id===el.dataset.al)));}
+function showAlert(a){
+  const chain=a.chain||['恶意载荷落地','可疑进程启动','异常行为触发检测','自动遏制已生效','告警生成'];
+  modal(`<div class="flex" style="gap:12px;align-items:center;margin-bottom:6px"><span class="sev ${a.sev}" style="width:10px;height:10px"></span>
+    <div style="font-size:15px;font-weight:700">${esc(a.title)}</div><span class="pill ${a.status==='resolved'?'green':a.sev==='crit'?'red':'amber'}">${a.status==='resolved'?'已处置':'处理中'}</span></div>
+  <div style="font-size:12px;color:var(--text-3);margin-bottom:14px">${esc(a.ep)} · ${esc(a.tech)}（${esc(a.tactic)}） · ${fmtDT(new Date(a.time))} · 风险评分 ${a.score}/100</div>
+  <div class="card" style="padding:14px"><div class="card-title" style="font-size:13px">攻击链还原</div>
+    <div class="flow">${chain.map((c,i)=>`<span class="node ${i===0?'':(i>=chain.length-2?'hit':'warn-hit')}">${i+1}. ${esc(c)}</span>${i<chain.length-1?'<span class="arrow">→</span>':''}`).join('')}</div></div>
+  <div class="grid-2 mt12" style="gap:12px">
+    <div><div class="card-title" style="font-size:13px">MITRE ATT&CK</div><div class="attr-map">${a.techs.map(t=>`<span class="a">${t}</span>`).join('')}</div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">战术：${esc(a.tactic)}</div></div>
+    <div><div class="card-title" style="font-size:13px">检测来源</div>
+      ${[['EDR 行为分析','命中'],['云查杀','—'],['威胁情报','命中'],['沙箱分析','—']].map(x=>`<div class="kv"><span class="k">${x[0]}</span><span class="v" style="color:${x[1]==='命中'?'var(--red)':'var(--text-3)'}">${x[1]}</span></div>`).join('')}</div>
+  </div>
+  <div class="flex mt16" style="justify-content:flex-end;gap:8px">
+    <button class="btn btn-secondary btn-sm" id="alResp1">${I.lock} 隔离终端</button>
+    <button class="btn btn-secondary btn-sm" id="alResp2">${I.x} 终止进程</button>
+    <button class="btn btn-danger btn-sm" id="alResp3">${I.check} 标记已处置</button>
+  </div>`,{title:'告警详情 · '+a.id,okTxt:'关闭',showCancel:false,wide:true});
+  $('#alResp3').onclick=()=>{a.status='resolved';save();audit('告警处置',`处置告警 ${a.id} ${a.title}`);toast('告警已标记为已处置','ok');renderEDR();};
+  $('#alResp1').onclick=()=>{toast('已下发终端隔离指令（演示）','ok');audit('自动遏制',`隔离终端 ${a.ep}`);};
+  $('#alResp2').onclick=()=>{toast('已终止恶意进程（演示）','ok');};
+}
+function rEdrTl(){
+  const ep=store.epTl||'WIN-研发部-07';
+  const evs=[
+   {t:'09:14:02',sev:'info',title:'进程启动：WINWORD.EXE',desc:'由 outlook.exe 的 COM 调用创建，路径 C:\\Program Files\\Microsoft Office\\root\\Office16\\'},
+   {t:'09:14:11',sev:'warn',title:'创建子进程：cmd.exe /c',desc:'WINWORD.EXE → cmd.exe，命令行含 base64 编码参数，命中脚本控制规则'},
+   {t:'09:14:13',sev:'high',title:'无文件载荷执行（内存）',desc:'powershell.exe 通过 FromBase64String 解码执行，未落地文件，AMSI 告警'},
+   {t:'09:14:15',sev:'crit',title:'C2 外联建立',desc:'svchost.exe 与 node-v1.xyz:443 建立 TLS 会话，威胁情报 IOC-8821 命中'},
+   {t:'09:14:16',sev:'info',title:'自动遏制触发',desc:'EDR 自动隔离进程树（3 个进程），终端进入隔离观察 30 分钟'},
+   {t:'09:14:17',sev:'high',title:'根因分析完成',desc:'攻击链：钓鱼宏 → PowerShell 无文件载荷 → C2；已生成事件报告 ALT-1008'},
+   {t:'09:15:00',sev:'info',title:'响应动作',desc:'管理员确认隔离，执行内存取证快照与进程回滚'}];
+  $('#edrBody').innerHTML=`
+  <div class="flex mb16" style="flex-wrap:wrap;gap:10px;justify-content:space-between">
+    <div class="flex" style="gap:8px"><span class="stat-chip" style="border-color:var(--border-2)">${I.clock} 时间范围：今天 09:00-09:30</span><span class="stat-chip" style="border-color:var(--border-2)">${I.eye} 遥测事件 <b>1,284</b></span></div>
+    <select id="tlEp" style="width:220px">${store.endpoints.map(e=>`<option ${e.name===ep?'selected':''}>${e.name}</option>`).join('')}</select></div>
+  <div class="grid-2" style="grid-template-columns:1fr 1.5fr">
+    <div class="card"><div class="card-title">攻击链还原（MITRE ATT&CK）</div>
+      <div class="flow" style="flex-direction:column;align-items:stretch;gap:6px">
+      ${[['T1566.001 · 鱼叉式钓鱼','初始访问','hit'],['T1059.001 · PowerShell','执行','hit'],['T1059.003 · 命令脚本','执行','hit'],['T1027 · 混淆载荷','防御规避','warn-hit'],['T1071.001 · 应用层 C2','指挥控制','hit'],['T1485 · 数据破坏','影响','warn-hit']].map((x,i)=>`<div class="node ${x[2]}" style="display:flex;justify-content:space-between;width:100%"><span>${i+1}. ${x[0]}</span><span class="pill ${x[2]==='hit'?'red':'amber'}" style="font-size:10px">${x[1]}</span></div>`).join('')}
+      </div></div>
+    <div class="card"><div class="card-title">事件时间线 <span class="sub">${ep}</span></div>
+      <div class="timeline">${evs.map(e=>`<div class="tl-item ${e.sev==='crit'?'crit':e.sev==='high'?'high':e.sev==='med'?'med':'low'}"><div class="tl-time">${e.t}</div><div class="tl-title">${esc(e.title)}</div><div class="tl-desc">${esc(e.desc)}</div></div>`).join('')}</div></div>
+  </div>`;
+  $('#tlEp').onchange=e=>{store.epTl=e.target.value;rEdrTl();};
+}
+function rEdrHunt(){
+  const qs=[['可疑 PowerShell 执行','powershell.exe 编码命令行 近7天','T1059.001','高'],['横向移动模式','同一账户多主机登录 或 SMB 爆破','T1110','高'],['无文件载荷','内存中可疑模块（无磁盘路径）','T1055','高'],['异常外联','连接未知端口/域名且非白名单','T1071','中'],['权限提升','提权漏洞利用 API 序列','T1068','中'],['凭证异常','LSASS 读取 / DPAPI 访问','T1003','高']];
+  $('#edrBody').innerHTML=`
+  <div class="card"><div class="card-title">威胁狩猎</div><p style="font-size:12.5px;color:var(--text-2)">基于 MITRE ATT&CK 的主动搜索，对全量遥测执行狩猎查询。以下为常用狩猎模板，可一键运行。</p>
+    <div class="grid-2 mt12" style="gap:10px">${qs.map(q=>`<div class="tgl-row" style="border:1px solid var(--border);cursor:pointer" data-hunt="${esc(q[0])}"><div class="t-info"><div class="t-title">${q[0]}</div><div class="t-desc">${q[1]} · ${q[2]}</div></div><span class="pill ${q[3]==='高'?'red':'amber'}">${q[3]}</span></div>`).join('')}</div></div>
+  <div class="card mt16"><div class="card-title">狩猎结果</div><div id="huntRes"><div class="empty">${I.target}<div>选择上方狩猎模板开始搜索</div></div></div></div>`;
+  $$('#edrBody [data-hunt]').forEach(c=>c.onclick=()=>{const name=c.dataset.hunt;$('#huntRes').innerHTML=`<div class="flex" style="gap:12px;align-items:center;padding:8px 0"><div class="progress grow"><div class="bar striped" style="width:60%"></div></div><span style="font-size:12px;color:var(--text-3)">正在检索遥测…</span></div>`;
+    setTimeout(()=>{const n=2+Math.floor(Math.random()*4);$('#huntRes').innerHTML=`<div class="table-wrap"><table class="tbl"><colgroup><col style="width:22%"><col style="width:20%"><col style="width:16%"><col style="width:14%"><col style="width:14%"><col style="width:14%"></colgroup>
+    <thead><tr><th>终端</th><th>行为</th><th>时间</th><th>风险</th><th>状态</th><th>操作</th></tr></thead><tbody>${[...Array(n)].map((_,i)=>`<tr><td style="font-weight:600">${store.endpoints[(i*5)%store.endpoints.length].name}</td><td style="font-size:12px">${esc(name)} · 命中 #${100+i}</td><td style="color:var(--text-3)">${relT(T-i*40*60000)}</td><td><span class="pill red">高</span></td><td><span class="pill amber">待确认</span></td><td><button class="btn btn-ghost btn-sm">${I.eye} 查看</button></td></tr>`).join('')}</tbody></table></div>
+    <div class="flex mt12" style="justify-content:flex-end;gap:8px"><button class="btn btn-secondary btn-sm">${I.download} 导出结果</button><button class="btn btn-danger btn-sm">${I.lock} 批量遏制</button></div>`;audit('威胁狩猎',`运行狩猎查询 ${name}`);},1200);});
+}
+function rEdrResp(){
+  const caps=[['自动遏制',true,'高危威胁自动隔离进程与网络','#35c759'],['终端自动隔离',true,'C2/勒索行为触发终端隔离','#4cc2ff'],['进程回滚',true,'隔离后自动回滚恶意进程改动','#2fd8c7'],['文件回滚',true,'备份并回滚被篡改文件','#b884f5'],['USB 自动断连',true,'检测到威胁立即断开介质','#f5b82e'],['攻击面缩减',false,'自动关闭不必要端口与服务','#8f8f8f']];
+  $('#edrBody').innerHTML=`
+  <div class="card"><div class="card-title">自动响应策略（SOAR 联动）</div>
+    <div class="grid-3">${caps.map(c=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${c[0]}</div><div class="t-desc">${c[2]}</div></div><div class="toggle ${c[1]?'on':''}"></div></div>`).join('')}</div></div>
+  <div class="grid-3 mt16">
+    <div class="card"><div class="card-title">隔离区管理</div><div class="k-val" style="font-size:22px;font-weight:700">${store.quarantine.length}</div><div class="k-lbl" style="font-size:12px;color:var(--text-3)">已隔离文件（AES-256 加密）</div><button class="btn btn-secondary btn-sm mt12" data-g="quar">${I.lock} 打开隔离区</button></div>
+    <div class="card"><div class="card-title">攻击回滚</div><div class="k-lbl" style="font-size:12px;color:var(--text-3);margin-bottom:8px">回滚最近一次遏制操作的进程/注册表改动</div><button class="btn btn-danger btn-sm">${I.restore} 执行回滚</button></div>
+    <div class="card"><div class="card-title">事件响应 (IR)</div><div class="k-lbl" style="font-size:12px;color:var(--text-3);margin-bottom:8px">预案：勒索事件响应流程 v2.3</div><button class="btn btn-secondary btn-sm">${I.file} 打开预案</button></div>
+  </div>
+  <div class="card mt16"><div class="card-title">响应历史</div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:14%"><col style="width:26%"><col style="width:18%"><col style="width:16%"><col style="width:14%"><col style="width:12%"></colgroup>
+    <thead><tr><th>时间</th><th>动作</th><th>目标</th><th>触发方式</th><th>状态</th><th>耗时</th></tr></thead>
+    <tbody>${[['09:14:16','自动遏制','WIN-研发部-07','EDR 自动响应','已完成','0.8s'],['08:51:02','阻断 C2 会话','node-v1.xyz','威胁情报','已完成','0.3s'],['07:32:44','封禁 IP','45.143.201.9','恶意IP阻断','已完成','0.2s'],['06:12:58','文件隔离','invoice_#48219.pdf.exe','云查杀','已完成','1.1s'],['04:47:30','终端隔离','LNX-K8s-Node-05','行为分析','已完成','2.4s']].map(r=>`<tr><td class="mono" style="font-size:11px">${r[0]}</td><td style="font-weight:600">${r[1]}</td><td class="mono" style="font-size:11px">${r[2]}</td><td><span class="tag">${r[3]}</span></td><td><span class="pill green">${r[4]}</span></td><td class="num">${r[5]}</td></tr>`).join('')}</tbody></table></div></div>`;
+  $$('#edrBody [data-g]').forEach(b=>b.onclick=()=>go('protection','quar'));
+}
+</script>

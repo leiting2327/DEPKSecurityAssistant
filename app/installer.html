@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEPK Security Assistant - 安装向导</title>
+<style>
+:root{
+  --bg:#202020;--bg2:#2b2b2b;--bg3:#333333;
+  --card:#2a2a2a;--card2:#313131;--border:#3c3c3c;--border2:#484848;
+  --txt:#f3f3f3;--txt2:#c8c8c8;--txt3:#8a8a8a;
+  --acc:#4cc2ff;--acc2:#3aa8e8;--green:#6ccb5f;--amber:#ffb900;--red:#ff5252;
+  --accent-soft:rgba(76,194,255,.14);--green-soft:rgba(108,203,95,.14);
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%}
+body{
+  font-family:"Segoe UI Variable","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+  background:radial-gradient(1200px 700px at 85% -10%,rgba(76,194,255,.10),transparent 55%),
+             radial-gradient(900px 600px at -10% 110%,rgba(108,203,95,.07),transparent 50%),
+             var(--bg);
+  color:var(--txt);overflow:hidden;user-select:none;
+}
+#app{display:flex;flex-direction:column;height:100vh}
+.dragbar{height:40px;display:flex;align-items:center;gap:10px;padding:0 16px;-webkit-app-region:drag;flex:none}
+.dragbar .logo{width:22px;height:22px;border-radius:6px;background:linear-gradient(135deg,var(--acc),#2f9fe8);display:flex;align-items:center;justify-content:center}
+.dragbar .logo svg{width:14px;height:14px;fill:#fff}
+.dragbar .ttl{font-size:12px;color:var(--txt2);letter-spacing:.3px}
+.winctrls{margin-left:auto;display:flex;-webkit-app-region:no-drag}
+.winctrls button{width:46px;height:32px;border:0;background:transparent;color:var(--txt2);font-size:12px;cursor:pointer;border-radius:6px}
+.winctrls button:hover{background:rgba(255,255,255,.08)}
+.winctrls button.close:hover{background:var(--red);color:#fff}
+.wrap{flex:1;display:flex;min-height:0;padding:0 22px 22px}
+.left{width:340px;flex:none;margin-right:20px;display:flex;flex-direction:column;min-height:0}
+.hero{margin:18px 0 14px}
+.hero .ht{font-size:23px;font-weight:700;letter-spacing:.2px;display:flex;align-items:center;gap:10px}
+.hero .ht svg{width:30px;height:30px}
+.hero .hs{font-size:12.5px;color:var(--txt3);margin-top:6px;line-height:1.6}
+.feat{display:flex;flex-direction:column;gap:8px;overflow-y:auto;min-height:0;padding-right:4px}
+.feat::-webkit-scrollbar{width:6px}.feat::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.fcard{display:flex;gap:10px;align-items:flex-start;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px}
+.fcard .fi{width:34px;height:34px;flex:none;border-radius:8px;display:flex;align-items:center;justify-content:center;background:var(--accent-soft);color:var(--acc)}
+.fcard .fi svg{width:18px;height:18px;fill:currentColor}
+.fcard .ft{font-size:13px;font-weight:600}
+.fcard .fd{font-size:11px;color:var(--txt3);margin-top:2px;line-height:1.5}
+.right{flex:1;background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--border);border-radius:16px;display:flex;flex-direction:column;min-height:0;position:relative;overflow:hidden}
+.step-body{flex:1;padding:36px 44px 24px;overflow-y:auto;display:flex;flex-direction:column}
+.step-body::-webkit-scrollbar{width:6px}.step-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+.st-title{font-size:26px;font-weight:700}
+.st-sub{font-size:13px;color:var(--txt3);margin-top:8px;line-height:1.7;max-width:560px}
+.st-title .dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--green);margin-right:10px;vertical-align:2px;box-shadow:0 0 0 4px var(--green-soft)}
+.opt{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-top:22px}
+.opt label{display:flex;align-items:flex-start;gap:12px;cursor:pointer}
+.opt input[type=checkbox]{display:none}
+.chk{width:20px;height:20px;flex:none;border:2px solid var(--border2);border-radius:6px;position:relative;margin-top:1px}
+.opt input:checked + .chk{background:var(--acc);border-color:var(--acc)}
+.opt input:checked + .chk::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:10px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+.opt .ot{font-size:14px;font-weight:600}
+.opt .od{font-size:11.5px;color:var(--txt3);margin-top:3px;line-height:1.6}
+.pathrow{display:flex;gap:8px;align-items:center;margin-top:16px}
+.pathrow input{flex:1;background:var(--bg3);border:1px solid var(--border2);color:var(--txt);border-radius:8px;padding:9px 12px;font-size:12.5px;outline:none}
+.pathrow input:focus{border-color:var(--acc)}
+.pathrow .btn-ghost{background:var(--bg3);border:1px solid var(--border2);color:var(--txt2);border-radius:8px;padding:9px 12px;font-size:12px;cursor:pointer}
+.pathrow .btn-ghost:hover{border-color:var(--acc);color:var(--acc)}
+.hint{font-size:11px;color:var(--txt3);margin-top:8px}
+.badge{display:inline-flex;align-items:center;gap:6px;font-size:11px;padding:4px 10px;border-radius:20px;background:var(--green-soft);color:var(--green);margin-top:10px}
+.step-foot{flex:none;padding:18px 44px;border-top:1px solid var(--border);display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-width:110px;padding:10px 22px;border-radius:8px;font-size:13.5px;font-weight:600;cursor:pointer;border:1px solid transparent}
+.btn-primary{background:linear-gradient(180deg,var(--acc),var(--acc2));color:#fff;box-shadow:0 2px 8px rgba(76,194,255,.35)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-primary:disabled{opacity:.55;cursor:default;filter:none}
+.btn-secondary{background:var(--bg3);border-color:var(--border2);color:var(--txt2)}
+.btn-secondary:hover{border-color:var(--acc);color:var(--acc)}
+.btn-danger{background:rgba(255,82,82,.15);border-color:rgba(255,82,82,.4);color:var(--red)}
+.btn-danger:hover{background:rgba(255,82,82,.25)}
+/* 安装中 */
+.inst-area{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:0}
+.ring{width:64px;height:64px;border-radius:50%;border:4px solid rgba(76,194,255,.15);border-top-color:var(--acc);animation:spin 1s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.inst-file{font-size:12px;color:var(--txt3);max-width:460px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 底部进度条 */
+.progress-rail{position:absolute;left:0;right:0;bottom:0;height:4px;background:rgba(255,255,255,.05)}
+.progress-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--acc2),var(--acc),#7fd7ff);transition:width .25s ease;box-shadow:0 0 10px rgba(76,194,255,.8);position:relative}
+.progress-fill::after{content:"";position:absolute;top:0;bottom:0;right:0;width:40px;background:linear-gradient(90deg,transparent,rgba(255,255,255,.55));animation:sheen 1.2s linear infinite}
+@keyframes sheen{from{transform:translateX(-60px)}to{transform:translateX(80px)}}
+.pct{font-size:26px;font-weight:700;color:var(--acc);font-variant-numeric:tabular-nums}
+.plbl{font-size:12px;color:var(--txt3)}
+/* 完成 */
+.done-ico{width:84px;height:84px;border-radius:50%;background:var(--green-soft);display:flex;align-items:center;justify-content:center;animation:pop .4s cubic-bezier(.2,1.4,.4,1)}
+.done-ico svg{width:42px;height:42px;fill:var(--green)}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.done-title{font-size:24px;font-weight:700;margin-top:20px}
+.done-sub{font-size:13px;color:var(--txt3);margin-top:8px;line-height:1.7;text-align:center}
+.done-checks{display:flex;flex-direction:column;gap:8px;margin-top:22px;font-size:12.5px;color:var(--txt2)}
+.done-checks .di{display:flex;align-items:center;gap:8px}
+.done-checks .di svg{width:16px;height:16px;fill:var(--green);flex:none}
+/* 已安装 */
+.installed-note{display:flex;align-items:center;gap:10px;background:var(--accent-soft);border:1px solid rgba(76,194,255,.3);color:var(--acc);border-radius:10px;padding:12px 14px;font-size:13px;margin-top:22px}
+.spacer{flex:1}
+.hidden{display:none!important}
+.fade-in{animation:fadein .3s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="dragbar">
+    <div class="logo"><svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5.2 3.4 9.4 8 11 4.6-1.6 8-5.8 8-11V5l-8-3z"/></svg></div>
+    <div class="ttl">DEPK Security Assistant · 安装向导</div>
+    <div class="winctrls">
+      <button id="btnMin" title="最小化">—</button>
+      <button id="btnClose" class="close" title="关闭">✕</button>
+    </div>
+  </div>
+  <div class="wrap">
+    <div class="left">
+      <div class="hero">
+        <div class="ht"><svg viewBox="0 0 24 24"><path fill="url(#g)" d="M12 2 4 5v6c0 5.2 3.4 9.4 8 11 4.6-1.6 8-5.8 8-11V5l-8-3z"/></svg>DEPK Security</div>
+        <div class="hs">面向个人与组织的终端安全助手，本地引擎真实可用，专为 Windows 11 打造。</div>
+      </div>
+      <div class="feat" id="featList"></div>
+    </div>
+    <div class="right">
+      <div class="step-body" id="stepBody"></div>
+      <div class="step-foot" id="stepFoot"></div>
+      <div class="progress-rail"><div class="progress-fill" id="progFill"></div></div>
+    </div>
+  </div>
+</div>
+<svg width="0" height="0"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4cc2ff"/><stop offset="1" stop-color="#2f9fe8"/></linearGradient></defs></svg>
+<script>
+const I = {
+  shield:'<svg viewBox="0 0 24 24"><path d="M12 2 4 5v6c0 5.2 3.4 9.4 8 11 4.6-1.6 8-5.8 8-11V5l-8-3z"/></svg>',
+  scan:'<svg viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 0 3 9.5c0 1.6.6 3.1 1.6 4.3L2.3 16l1.4 1.4 2.3-2.3c1.2 1 2.7 1.6 4.3 1.6a6.5 6.5 0 1 0-1-12.9zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9zm9 7.5-1.5 1.5 1.5 1.5 1.5-1.5-1.5-1.5zM13 9.5h-2.5V7h-2v2.5H6v2h2.5V14h2v-2.5H13v-2z"/></svg>',
+  sandbox:'<svg viewBox="0 0 24 24"><path d="M3 5v14h18V5H3zm16 12H5V7h14v10zm-4-8v4a2 2 0 0 1-2 2h-2v2h4v2H9v-2h2v-2H9a2 2 0 0 1-2-2V9h2v4h2V9h2z"/></svg>',
+  monitor:'<svg viewBox="0 0 24 24"><path d="M4 4h16a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-7v2h3v2H8v-2h3v-2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2zm0 2v9h16V6H4z"/></svg>',
+  lock:'<svg viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 0-5 5v3H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8a2 2 0 0 0-2-2h-1V7a5 5 0 0 0-5-5zm3 8H9V7a3 3 0 0 1 6 0v3z"/></svg>',
+  bolt:'<svg viewBox="0 0 24 24"><path d="M13 2 4 14h6l-1 8 9-12h-6l1-8z"/></svg>',
+  report:'<svg viewBox="0 0 24 24"><path d="M5 3h9l5 5v13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zm9 1.5V8h3.5L14 4.5zM8 11v2h8v-2H8zm0 4v2h5v-2H8z"/></svg>',
+  check:'<svg viewBox="0 0 24 24"><path d="M9 16.2 4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"/></svg>'
+};
+const FEATS = [
+  {i:'scan',t:'真实本机扫描',d:'递归读取真实文件，SHA-256、熵值、PE/脚本/宏/勒索/挖矿特征检测，命中自动隔离'},
+  {i:'sandbox',t:'动态沙盒',d:'受限环境真实运行样本 5~15 秒，采集进程树/外联/写文件，超时强杀并清理'},
+  {i:'monitor',t:'本机管理',d:'真实进程终止、启动项、网络连接、系统信息、U盘识别、软件清单'},
+  {i:'bolt',t:'实时监控',d:'fs.watch 实时监控下载/桌面/文档，文件变更即时记录上报'},
+  {i:'lock',t:'加密隔离区',d:'威胁文件移入隔离目录并记录元数据，可随时恢复或删除'},
+  {i:'report',t:'审计与报表',d:'操作审计、扫描历史、隔离清单，一键导出 CSV/JSON'}
+];
+const $=s=>document.querySelector(s);
+const REAL = !!(window.depk && window.depk.isElectron);
+const DEFAULT_DIR = (REAL ? (window.depk.getDefaultDir ? '' : '') : '') || 'C:\\Users\\' + (navigator.platform.includes('Win') ? '%USERNAME%' : '用户') + '\\AppData\\Local\\DEPKSecurityAssistant';
+let targetDir = DEFAULT_DIR, autostart = true, status = { installed: false };
+
+/* ---- 渲染功能卡片 ---- */
+$('#featList').innerHTML = FEATS.map(f=>`<div class="fcard"><div class="fi">${I[f.i]}</div><div><div class="ft">${f.t}</div><div class="fd">${f.d}</div></div></div>`).join('');
+
+/* ---- 步骤渲染 ---- */
+function renderWelcome(){
+  $('#stepBody').innerHTML = `
+    <div class="st-title fade-in"><span class="dot"></span>安装 DEPK Security Assistant</div>
+    <div class="st-sub">终端安全助手 · 3.4.210<br>左侧为本机已内置的全部安全能力，全部本地引擎驱动，无需云端即可工作。</div>
+    <div class="opt fade-in" style="margin-top:26px">
+      <label><input type="checkbox" id="optAuto"><span class="chk"></span><span><div class="ot">开机抢先启动（推荐）</div>
+      <div class="od">登录时立即以高优先级（Priority 4）启动，零延迟，先于绝大多数自启动程序；与计划任务双保险，让防护尽可能早于威胁发作。</div></span></label>
+    </div>
+    <div class="opt fade-in">
+      <div class="ot" style="font-size:13.5px">安装位置</div>
+      <div class="pathrow"><input id="instPath" spellcheck="false"><button class="btn-ghost" id="btnReset">默认</button></div>
+      <div class="hint">无需管理员权限，安装到当前用户目录。卸载时保留隔离区数据。</div>
+    </div>
+    <div class="badge"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2 4 5v6c0 5.2 3.4 9.4 8 11 4.6-1.6 8-5.8 8-11V5l-8-3z"/></svg>未签名评估版 · SmartScreen 提示点「仍要运行」即可</div>`;
+  $('#optAuto').checked = autostart;
+  $('#instPath').value = targetDir;
+  $('#btnReset').onclick = ()=> $('#instPath').value = DEFAULT_DIR;
+  $('#stepFoot').innerHTML = `<button class="btn btn-primary" id="btnInstall">立即安装</button>`;
+  $('#btnInstall').onclick = () => {
+    targetDir = ($('#instPath').value||'').trim();
+    autostart = $('#optAuto').checked;
+    startInstall();
+  };
+}
+function renderProgress(){ setPct(0); $('#stepBody').innerHTML = `
+  <div class="inst-area fade-in">
+    <div class="ring"></div>
+    <div class="pct" id="pctNum">0%</div>
+    <div class="inst-file" id="instFile">正在准备…</div>
+  </div>`;
+  $('#stepFoot').innerHTML = '';}
+function setPct(p){ const f=$('#progFill'); if(f) f.style.width = p+'%'; const n=$('#pctNum'); if(n) n.textContent = Math.round(p)+'%'; }
+function renderDone(){
+  setPct(100);
+  $('#stepBody').innerHTML = `
+    <div class="inst-area fade-in">
+      <div class="done-ico">${I.check}</div>
+      <div class="done-title">安装完成</div>
+      <div class="done-sub">DEPK Security Assistant 已就绪，您的设备已受到保护。</div>
+      <div class="done-checks">
+        <div class="di">${I.check} 桌面与开始菜单快捷方式已创建</div>
+        <div class="di">${I.check} 控制面板可随时卸载</div>
+        ${autostart?'<div class="di">'+I.check+' 开机抢先启动已启用（登录时高优先级）</div>':''}
+      </div>
+    </div>`;
+  $('#stepFoot').innerHTML = `<button class="btn btn-primary" id="btnRun">立即运行</button><button class="btn btn-secondary" id="btnDone">完成</button>`;
+  $('#btnRun').onclick = ()=> { if(REAL) window.depk.launchInstalled(); else { alert('已安装（模拟）'); location.reload(); } };
+  $('#btnDone').onclick = ()=> { if(REAL) window.depk.closeWin(); };
+}
+function renderInstalled(){
+  $('#stepBody').innerHTML = `
+    <div class="st-title fade-in"><span class="dot"></span>已安装</div>
+    <div class="st-sub">检测到 DEPK Security Assistant 已安装于：<br><b style="color:var(--acc);font-size:12.5px;font-family:Consolas,monospace">${REAL?status.dir:'（模拟）'}</b></div>
+    <div class="installed-note fade-in">${I.shield} 您可以将本程序移动到其他位置再双击，即可重新进入安装向导。</div>`;
+  $('#stepFoot').innerHTML = `<button class="btn btn-secondary" id="btnRepair">重新安装</button><button class="btn btn-danger" id="btnUninstall">卸载</button>`;
+  $('#btnRepair').onclick = ()=> { targetDir = DEFAULT_DIR; startInstall(); };
+  $('#btnUninstall').onclick = ()=> { if(!confirm('确认卸载 DEPK Security Assistant？将删除程序文件（保留隔离区数据）。')) return; startUninstall(); };
+}
+function renderUninstalling(){ setPct(0); $('#stepBody').innerHTML = `
+  <div class="inst-area fade-in"><div class="ring"></div><div class="pct" id="pctNum">0%</div><div class="inst-file" id="instFile">正在卸载…</div></div>`;
+  $('#stepFoot').innerHTML = ''; }
+function renderUninstalled(){
+  setPct(100);
+  $('#stepBody').innerHTML = `<div class="inst-area fade-in"><div class="done-ico">${I.check}</div><div class="done-title">已卸载</div><div class="done-sub">DEPK Security Assistant 已从本机移除。感谢使用，欢迎再次安装。</div></div>`;
+  $('#stepFoot').innerHTML = `<button class="btn btn-secondary" id="btnDone">关闭</button>`;
+  $('#btnDone').onclick = ()=> { if(REAL) window.depk.closeWin(); };
+}
+
+/* ---- 安装/卸载流程 ---- */
+function startInstall(){
+  renderProgress();
+  if(!REAL){ // 浏览器模拟
+    let p=0; const iv=setInterval(()=>{ p=Math.min(100,p+8+Math.random()*10); setPct(p); $('#instFile').textContent='正在复制 '+Math.round(p*0.62)+' 个文件…'; if(p>=100){clearInterval(iv);renderDone();} },90);
+    return;
+  }
+  window.depk.onProgress(d=>{ setPct(d.done/Math.max(d.total,1)*100); const f=$('#instFile'); if(f) f.textContent='正在复制 '+d.file; });
+  window.depk.install(targetDir, autostart).then(r=>{
+    if(r && r.ok) renderDone(); else { setPct(0); $('#instFile').textContent='安装失败：'+(r&&r.err||'未知错误'); }
+  });
+}
+function startUninstall(){
+  renderUninstalling();
+  if(!REAL){ let p=0; const iv=setInterval(()=>{ p=Math.min(100,p+15); setPct(p); if(p>=100){clearInterval(iv);renderUninstalled();} },90); return; }
+  window.depk.onProgress(d=>{ setPct(d.done/Math.max(d.total,1)*100); const f=$('#instFile'); if(f) f.textContent='正在删除 '+d.file; });
+  window.depk.uninstall().then(r=>{ if(r && r.ok) renderUninstalled(); else { $('#instFile').textContent='卸载失败：'+(r&&r.err||'未知错误'); } });
+}
+
+/* ---- 窗口控制 ---- */
+$('#btnMin').onclick = ()=> REAL && window.depk.minWin();
+$('#btnClose').onclick = ()=> REAL && window.depk.closeWin();
+
+/* ---- 初始化 ---- */
+if(REAL){
+  window.depk.getStatus().then(s=>{ status=s; targetDir=s.dir; if(s.installed) renderInstalled(); else renderWelcome(); });
+}else{ targetDir='C:\\Users\\你的用户名\\AppData\\Local\\DEPKSecurityAssistant'; renderWelcome(); }
+</script>
+</body>
+</html>

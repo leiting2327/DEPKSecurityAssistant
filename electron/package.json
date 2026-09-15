@@ -1,0 +1,50 @@
+{
+  "name": "DEPKSecurityAssistant",
+  "description": "DEPK Security Assistant - 终端安全防护 (EDR/XDR)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "devDependencies": {
+    "7zip-bin": "^5.2.0",
+    "electron": "^33.2.0",
+    "electron-builder": "^24.13.3",
+    "electron-packager": "^17.1.2",
+    "pe-library": "^1.0.1",
+    "resedit": "^2.0.3"
+  },
+  "build": {
+    "appId": "com.depk.security",
+    "productName": "DEPK Security Assistant",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "engine-shared.js",
+      "index.html",
+      "build/icon.ico"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "DEPK Security Assistant",
+      "uninstallDisplayName": "DEPK Security Assistant",
+      "deleteAppDataOnUninstall": false,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    }
+  }
+}

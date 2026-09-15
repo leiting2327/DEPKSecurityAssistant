@@ -1,0 +1,43 @@
+<body>
+<div class="app">
+  <!-- ===== 左侧导航 (JS 渲染) ===== -->
+  <aside class="nav" id="nav"></aside>
+
+  <!-- ===== 主区域 ===== -->
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-title">
+        <span id="tbTitle">概览</span>
+        <span class="crumb" id="tbCrumb"></span>
+      </div>
+      <div class="tb-right">
+        <div class="status-pill" id="statusPill"><span class="dot"></span><span id="statusPillTxt">已保护</span></div>
+        <button class="icon-btn" id="btnScanNow" title="快速扫描"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg></button>
+        <button class="icon-btn" id="btnNotif" title="通知">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+          <span class="badge" id="notifBadge">3</span>
+        </button>
+        <button class="icon-btn" id="btnTheme" title="切换主题">
+          <svg id="themeIco" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4l1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+        </button>
+        <div class="flex" style="gap:8px">
+          <div style="width:30px;height:30px;border-radius:50%;background:linear-gradient(135deg,#4cc2ff,#35c759);display:flex;align-items:center;justify-content:center;color:#fff;font-size:12.5px;font-weight:700">管</div>
+          <div style="line-height:1.2;display:none" class="tbm-user">
+            <div style="font-size:12px;font-weight:600">管理员</div>
+            <div style="font-size:10px;color:var(--text-3)">超级管理员</div>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main class="view" id="view">
+      <div class="view-inner" id="viewInner"></div>
+    </main>
+  </div>
+</div>
+
+<!-- ===== 全局弹窗 / 通知 / 隐藏输入 ===== -->
+<div class="modal-mask" id="modalMask"><div class="modal" id="modalBox"></div></div>
+<div class="toasts" id="toasts"></div>
+<input type="file" id="fileScan" style="display:none" multiple>
+<input type="file" id="fileDrop" style="display:none" multiple>
+<input type="file" id="fileImport" style="display:none" accept=".json">

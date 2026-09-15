@@ -1,0 +1,167 @@
+<script>
+/* ================= 演示数据 ================= */
+const T=Date.now(), H=3600000, D=86400000;
+const mkAlert=(s,sev,title,desc,ep,tech,tac,status='new',extra={})=>({id:'ALT-'+String(1000+Math.random()*8999|0),time:T-s*H,sev,title,desc,ep,tech,tac,status,score:sev==='crit'?92:sev==='high'?78:sev==='med'?55:30,techs:[tech],...extra});
+store.endpoints=[
+ {id:'EP-001',name:'WIN-财务部-01',os:'Windows 11 企业版 24H2',ip:'192.168.1.21',status:'online',risk:'low',last:'2分钟前',ver:'3.4.210',grp:'财务部',type:'桌面',model:'ThinkPad X1',cpu:'i7-1370P',mem:'32 GB',disk:'NVMe 512GB',apps:287,offline:false,isolated:false},
+ {id:'EP-002',name:'WIN-研发部-07',os:'Windows 11 专业版 23H2',ip:'192.168.1.47',status:'online',risk:'high',last:'刚刚',ver:'3.4.210',grp:'研发部',type:'桌面',model:'戴尔 Precision 3581',cpu:'i9-13950HX',mem:'64 GB',disk:'NVMe 1TB',apps:412,offline:false,isolated:false},
+ {id:'EP-003',name:'WIN-HR-02',os:'Windows 10 企业版 22H2',ip:'192.168.1.68',status:'offline',risk:'low',last:'1天前',ver:'3.4.205',grp:'人事部',type:'桌面',model:'惠普 EliteBook',cpu:'i5-1240P',mem:'16 GB',disk:'SSD 256GB',apps:198,offline:true,isolated:false},
+ {id:'EP-004',name:'SRV-核心应用-01',os:'Windows Server 2022',ip:'10.10.2.11',status:'online',risk:'low',last:'1分钟前',ver:'3.4.210',grp:'服务器',type:'服务器',model:'华为 FusionServer',cpu:'Xeon 8375C x2',mem:'128 GB',disk:'RAID10 4TB',apps:86,offline:false,isolated:false},
+ {id:'EP-005',name:'SRV-数据库-02',os:'Windows Server 2019',ip:'10.10.2.15',status:'online',risk:'med',last:'3分钟前',ver:'3.4.208',grp:'服务器',type:'服务器',model:'浪潮 NF5280',cpu:'Xeon 6330 x2',mem:'256 GB',disk:'RAID10 12TB',apps:64,offline:false,isolated:false},
+ {id:'EP-006',name:'LNX-GitLab-03',os:'CentOS 7.9',ip:'10.10.3.20',status:'online',risk:'low',last:'5分钟前',ver:'3.4.200',grp:'研发部',type:'Linux',model:'VMware 虚拟机',cpu:'vCPU 8',mem:'32 GB',disk:'vDisk 500GB',apps:52,offline:false,isolated:false},
+ {id:'EP-007',name:'LNX-K8s-Node-05',os:'Ubuntu 22.04 LTS',ip:'10.10.4.31',status:'online',risk:'low',last:'2分钟前',ver:'3.4.210',grp:'云原生',type:'容器节点',model:'腾讯云 CVM',cpu:'16 vCPU',mem:'64 GB',disk:'云盘 1TB',apps:231,offline:false,isolated:false},
+ {id:'EP-008',name:'MAC-设计-01',os:'macOS 14.5 Sonoma',ip:'192.168.1.88',status:'online',risk:'low',last:'8分钟前',ver:'3.4.207',grp:'设计部',type:'Mac',model:'MacBook Pro 16"',cpu:'M3 Pro',mem:'36 GB',disk:'SSD 1TB',apps:156,offline:false,isolated:false},
+ {id:'EP-009',name:'M-销售-12',os:'Android 14',ip:'10.8.0.42',status:'online',risk:'med',last:'12分钟前',ver:'3.4.190',grp:'移动端',type:'BYOD',model:'Mate 60 Pro',cpu:'麒麟9000S',mem:'12 GB',disk:'512GB',apps:96,offline:false,isolated:false},
+ {id:'EP-010',name:'M-运营-05',os:'iOS 17.5',ip:'10.8.0.55',status:'offline',risk:'low',last:'2天前',ver:'3.4.188',grp:'移动端',type:'BYOD',model:'iPhone 15 Pro',cpu:'A17 Pro',mem:'8 GB',disk:'256GB',apps:88,offline:true,isolated:false},
+ {id:'EP-011',name:'VDI-办公池-01',os:'Windows 11 (VDI)',ip:'10.20.1.105',status:'online',risk:'low',last:'1分钟前',ver:'3.4.210',grp:'VDI',type:'虚拟桌面',model:'深信服 aDesk',cpu:'vCPU 4',mem:'8 GB',disk:'vDisk 80GB',apps:132,offline:false,isolated:false},
+ {id:'EP-012',name:'CW-云工作负载-华东',os:'Windows Server 2022 (云)',ip:'172.16.8.9',status:'online',risk:'low',last:'4分钟前',ver:'3.4.209',grp:'云工作负载',type:'云主机',model:'火山引擎 ECS',cpu:'8 vCPU',mem:'32 GB',disk:'ESSD 500GB',apps:74,offline:false,isolated:false}
+];
+store.alerts=[
+ mkAlert(0.4,'crit','勒索软件行为检测','检测到进程 WINWORD.EXE 在 3 秒内批量重命名并加密 214 个文件（扩展名改为 .lock），符合勒索行为特征。已自动遏制并隔离相关进程。','WIN-财务部-01','T1486','影响 / 数据加密',{chain:['宏文档被执行','创建子进程 cmd.exe','写入大量 .lock 文件','删除卷影副本 vssadmin','加密勒索说明 RYUK_README.txt']}),
+ mkAlert(2.1,'high','PowerShell 无文件攻击','powershell.exe 执行编码命令：FromBase64String + Invoke-Expression，加载内存载荷，未落地文件。已拦截脚本执行。','WIN-研发部-07','T1059.001','执行 / 命令与脚本解释器',{chain:['钓鱼邮件附件诱饵','Outlook 触发宏','启动 powershell -enc','内存加载 Cobalt Strike Beacon']}),
+ mkAlert(3.5,'high','横向移动（暴力破解）','检测到来自 10.10.2.15 的 SMB 登录尝试 52 次失败，命中暴力破解阈值，已触发自动遏制。','SRV-数据库-02','T1110.001','凭据访问 / 暴力破解'),
+ mkAlert(0.8,'crit','C2 通信阻断','终端与已知 C2 域名 node-v1.xyz (104.21.66.88) 建立 TLS 连接，威胁情报命中，已阻断连接并隔离终端 30 分钟。','WIN-研发部-07','T1071.001','指挥与控制 / 应用层协议',{chain:['Beacon 注入 svchost','心跳包每 60s','TLS 加密外联','命中情报 IOC-8821']}),
+ mkAlert(5.2,'med','凭证窃取防护','检测到对 LSASS.exe 进程内存的异常读取（MiniDumpWriteDump），已阻止。','WIN-研发部-07','T1003.001','凭据访问 / OS凭证窃取'),
+ mkAlert(7.8,'high','漏洞利用防护','Adobe Acrobat 触发 CVE-2025-4422 利用载荷（堆喷射特征），已隔离恶意文件并回滚受影响进程。','WIN-HR-02','T1203','执行 / 利用客户端执行',{status:'resolved'}),
+ mkAlert(9.5,'med','异常登录检测','管理员账号在 03:12 从境外 IP (45.143.201.9) 登录，未通过 MFA，已触发二次验证。','WIN-财务部-01','T1078','初始访问 / 有效账户'),
+ mkAlert(14,'low','钓鱼邮件（含宏）','邮件附件「工资表_2026.xlsm」含 AutoOpen 宏，宏分析沙箱判定为木马下载器，已隔离。','WIN-HR-02','T1566.001','初始访问 / 鱼叉式钓鱼',{status:'resolved'}),
+ mkAlert(22,'high','挖矿程序检测','检测到 XMRig 挖矿进程，CPU 占用 92%，矿池地址 stratum+tcp://pool.xmr.tw:443 命中黑名单。','LNX-K8s-Node-05','T1496','影响 / 资源劫持'),
+ mkAlert(48,'med','U盘威胁检测','U 盘（Sandisk 32GB）插入时发现可疑 autorun.inf + 隐藏 exe，已隔离并弹窗提醒。','WIN-财务部-01','T1091','初始访问 / 可移动介质',{status:'resolved'})
+];
+store.notifs=[
+ {t:T-0.3*H,icon:'shieldX',c:'red',title:'勒索攻击已遏制',desc:'WIN-财务部-01 勒索行为已自动遏制，隔离 1 个进程、2 个文件。'},
+ {t:T-2*H,icon:'shieldWarn',c:'amber',title:'终端风险升高',desc:'WIN-研发部-07 存在 3 条未处理高危告警，建议立即处置。'},
+ {t:T-26*H,icon:'patch',c:'blue',title:'病毒库已更新',desc:'病毒特征库更新至 2026.09.15.01，新增特征 12,847 条。'}
+];
+store.vulns=[
+ {id:'CVE-2025-4422',prod:'Adobe Acrobat Reader',sev:'high',ver:'23.008.20470',fix:'24.002.20933',status:'待修复',risk:'利用载荷已在野捕获',date:'2026-09-08'},
+ {id:'CVE-2025-3901',prod:'Microsoft Edge',sev:'med',ver:'126.0.2592.61',fix:'130.0.2849.56',status:'待重启',risk:'渲染引擎 UAF',date:'2026-09-05'},
+ {id:'CVE-2025-3315',prod:'Windows Server 2019',sev:'crit',ver:'17763.6054',fix:'17763.6529',status:'待修复',risk:'远程代码执行 (RCE)',date:'2026-09-01'},
+ {id:'CVE-2025-2818',prod:'WinRAR',sev:'med',ver:'6.24',fix:'7.01',status:'已忽略',risk:'路径穿越',date:'2026-08-27'},
+ {id:'CVE-2025-2102',prod:'Zoom Workplace',sev:'low',ver:'6.0.10',fix:'6.1.5',status:'已修复',risk:'信息泄露',date:'2026-08-20'},
+ {id:'CVE-2025-1803',prod:'Chrome',sev:'high',ver:'125.0.6422.60',fix:'127.0.6533.99',status:'待重启',risk:'类型混淆 RCE',date:'2026-08-14'},
+ {id:'CVE-2025-1550',prod:'Nginx (K8s Node)',sev:'med',ver:'1.24.0',fix:'1.27.2',risk:'请求走私',status:'待修复',date:'2026-08-08'},
+ {id:'CVE-2025-0901',prod:'OpenSSH',sev:'crit',ver:'8.9p1',fix:'9.8p1',risk:'RCE (regreSSHion)',status:'已修复',date:'2026-07-30'}
+];
+store.rules=[
+ {id:'FW-01',name:'允许 内部办公网',dir:'入站',proto:'TCP',port:'任意',src:'192.168.0.0/16',dst:'任意',act:'允许',app:'系统服务',enabled:true,hit:128430},
+ {id:'FW-02',name:'阻止 境外高危 IP 段',dir:'双向',proto:'任意',port:'任意',src:'45.143.192.0/20',dst:'任意',act:'阻止',app:'全部',enabled:true,hit:893},
+ {id:'FW-03',name:'允许 RDP (受控)',dir:'入站',proto:'TCP',port:'3389',src:'10.10.2.0/24',dst:'任意',act:'允许',app:'远程桌面',enabled:true,hit:520},
+ {id:'FW-04',name:'阻止 445 对外',dir:'出站',proto:'TCP',port:'445',src:'任意',dst:'任意',act:'阻止',app:'SMB',enabled:true,hit:4122},
+ {id:'FW-05',name:'允许 HTTPS 外联',dir:'出站',proto:'TCP',port:'443',src:'任意',dst:'任意',act:'允许',app:'浏览器',enabled:true,hit:882001},
+ {id:'FW-06',name:'阻止 未知 UDP 高端口',dir:'出站',proto:'UDP',port:'1024-65535',src:'任意',dst:'任意',act:'询问',app:'全部',enabled:false,hit:0}
+];
+store.iocs=[
+ {type:'域名',value:'node-v1.xyz',src:'豆包威胁情报',added:T-2*D,sev:'crit',tags:['C2','Beacon']},
+ {type:'IP',value:'104.21.66.88',src:'情报联盟',added:T-2*D,sev:'crit',tags:['C2']},
+ {type:'IP',value:'45.143.201.9',src:'暴力破解检测',added:T-9*H,sev:'high',tags:['扫描','爆破']},
+ {type:'URL',value:'hxxp://cdn.cdn-patch.top/update.exe',src:'Web 防护',added:T-1*D,sev:'high',tags:['投递','木马']},
+ {type:'哈希',value:'6f2b4c9e...a1d3 (SHA256)',src:'沙箱分析',added:T-3*D,sev:'med',tags:['木马下载器']},
+ {type:'域名',value:'pool.xmr.tw',src:'挖矿检测',added:T-1*D,sev:'high',tags:['矿池']},
+ {type:'文件',value:'RYUK_README.txt',src:'勒索特征库',added:T-2*D,sev:'crit',tags:['勒索']},
+ {type:'邮件',value:'billing@invoice-center.top',src:'反钓鱼',added:T-4*D,sev:'med',tags:['钓鱼']},
+ {type:'IP',value:'185.220.101.4',src:'蜜罐联动',added:T-5*D,sev:'med',tags:['Tor出口']},
+ {type:'哈希',value:'d41d8cd9... (EICAR)',src:'测试特征',added:T-0,sev:'low',tags:['测试']}
+];
+store.quarantine=[
+ {id:'Q-1001',name:'工资表_2026.xlsm',path:'C:\\Users\\hr02\\Downloads\\工资表_2026.xlsm',size:248320,hash:'e3a1f2...9c02',time:T-14*H,verdict:'木马下载器',sev:'high',engine:'宏分析 + AI',note:'AutoOpen 宏下载可执行载荷'},
+ {id:'Q-1002',name:'invoice_#48219.pdf.exe',path:'C:\\Users\\fin01\\Downloads\\invoice_#48219.pdf.exe',size:884736,hash:'7b2c...44aa',time:T-9*H,verdict:'木马',sev:'high',engine:'云查杀',note:'双扩展名伪装，命中云特征'},
+ {id:'Q-1003',name:'setup_activate.vbs',path:'C:\\Users\\dev07\\AppData\\Roaming\\setup_activate.vbs',size:18432,hash:'a9f1...0b3e',time:T-2*H,verdict:'脚本病毒',sev:'med',engine:'行为分析',note:'WScript.Shell + PowerShell 下载执行'},
+ {id:'Q-1004',name:'photos_2026.scr',path:'E:\\USB_32G\\photos_2026.scr',size:1572864,hash:'c3d0...77f1',time:T-46*H,verdict:'蠕虫',sev:'high',engine:'实时防护',note:'U 盘蠕虫，autorun 自启动'}
+];
+store.scanHist=[
+ {id:'SC-9001',type:'快速扫描',mode:'实时',time:T-1*H,dur:'38 秒',files:28641,threats:1,result:'发现 1 个威胁',path:'C:\\Users\\*'},
+ {id:'SC-9002',type:'全面扫描',mode:'实时',time:T-26*H,dur:'12 分 14 秒',files:412807,threats:2,result:'发现 2 个威胁',path:'C:\\'},
+ {id:'SC-9003',type:'U盘扫描',mode:'实时',time:T-46*H,dur:'52 秒',files:1832,threats:1,result:'发现 1 个威胁',path:'E:\\USB_32G'},
+ {id:'SC-9004',type:'自定义扫描',mode:'云查杀',time:T-2*D,dur:'3 分 05 秒',files:59214,threats:0,result:'未发现威胁',path:'D:\\工作文档'},
+ {id:'SC-9005',type:'快速扫描',mode:'实时',time:T-3*D,dur:'41 秒',files:28013,threats:0,result:'未发现威胁',path:'C:\\Users\\*'},
+ {id:'SC-9006',type:'离线扫描',mode:'离线库',time:T-4*D,dur:'9 分 47 秒',files:388012,threats:1,result:'发现 1 个威胁',path:'C:\\'}
+];
+store.sessions=[
+ {id:'SS-01',user:'admin',role:'超级管理员',ip:'192.168.1.10',time:T-2*H,status:'在线',mfa:true,device:'Windows 11 · Edge'},
+ {id:'SS-02',user:'zhang.wei',role:'安全运营',ip:'192.168.1.33',time:T-5*H,status:'在线',mfa:true,device:'Windows 11 · Edge'},
+ {id:'SS-03',user:'li.na',role:'审计员',ip:'192.168.1.56',time:T-1*D,status:'在线',mfa:true,device:'macOS · Safari'},
+ {id:'SS-04',user:'admin',role:'超级管理员',ip:'45.143.201.9',time:T-9*H,status:'已锁定',mfa:false,device:'未知 · 境外IP'},
+ {id:'SS-05',user:'wang.fang',role:'只读管理员',ip:'192.168.1.77',time:T-2*D,status:'离线',mfa:true,device:'Windows 11 · Chrome'}
+];
+/* 威胁情报源 */
+const TI_FEED=[
+ {t:'APT41 (Winnti)',date:'09-13',sev:'high',act:'针对制造业的供应链投递',desc:'利用恶意 DLL 侧加载入侵 ERP 软件更新通道，分发远控木马。',tactic:['初始访问','持久化']},
+ {t:'LockBit 4.0',date:'09-12',sev:'crit',act:'勒索软件即服务 (RaaS) 新变种',desc:'新增无文件载荷与 LOLBin 链（wmic + mshta），已捕获样本 3 个。',tactic:['执行','影响']},
+ {t:'XWorm',date:'09-11',sev:'med',act:'钓鱼邮件大规模投递',desc:'伪装为发货通知，携带混淆宏文档，落地后连接 5 个 C2。',tactic:['初始访问','C2']},
+ {t:'Kimsuky',date:'09-09',sev:'high',act:'针对研究机构凭证窃取',desc:'利用 HWP 漏洞与浏览器扩展窃取 VPN 与邮箱凭证。',tactic:['凭据访问']},
+ {t:'挖矿僵尸网络',date:'09-08',sev:'med',act:'利用未修补 Redis 漏洞',desc:'批量植入 Kinsing 挖矿木马，已识别矿池地址 12 个。',tactic:['资源劫持']},
+ {t:'DarkGate',date:'09-06',sev:'high',act:'VBA 宏传播新变种',desc:'使用 XOR 混淆与 Sleep 绕过沙箱，最终投递 DarkGate 木马。',tactic:['防御规避']}
+];
+/* 趋势数据 */
+const TREND={days:[...Array(30)].map((_,i)=>{const d=new Date(T-(29-i)*D);return `${d.getMonth()+1}/${d.getDate()}`;}),
+  threats:[...Array(30)].map((_,i)=>Math.round(30+18*Math.sin(i/3.1)+((i%7===2||i%7===5)?14:0)+Math.random()*10)),
+  blocks:[...Array(30)].map((_,i)=>Math.round(180+90*Math.sin(i/4.2+1)+Math.random()*40)),
+  types:[{l:'木马',v:214,c:'#4cc2ff'},{l:'勒索软件',v:68,c:'#f44b5a'},{l:'挖矿',v:52,c:'#f5b82e'},{l:'脚本病毒',v:89,c:'#b884f5'},{l:'钓鱼/垃圾邮件',v:1260,c:'#35c759'},{l:'其他',v:34,c:'#2fd8c7'}],
+  epStatus:[{l:'在线',v:10,c:'#35c759'},{l:'离线',v:2,c:'#8f8f8f'},{l:'隔离中',v:0,c:'#f44b5a'}],
+  detByMod:[{l:'文件扫描',v:182,c:'#4cc2ff'},{l:'Web防护',v:96,c:'#35c759'},{l:'邮件',v:64,c:'#2fd8c7'},{l:'EDR行为',v:41,c:'#f5b82e'},{l:'网络IDS',v:18,c:'#b884f5'}],
+  sevDist:[{l:'严重',v:6,c:'#f44b5a'},{l:'高危',v:17,c:'#ff7a45'},{l:'中危',v:38,c:'#f5b82e'},{l:'低危',v:61,c:'#2fd8c7'}]};
+/* ============ 全部功能矩阵（覆盖用户需求清单） ============ */
+const FEATURES=[
+ {g:'集中管理',icon:'console',items:[
+  ['集中管理控制台','Web 控制台统一纳管全部终端与策略',1],['统一策略下发','按组/按端实时下发安全策略',1],['跨平台终端管理','Windows / macOS / Linux / 移动端统一管理',1],
+  ['远程部署','静默安装代理并自动加域',1],['远程卸载','受控卸载代理（需双重授权）',0],['远程锁定','管理员远程锁定终端屏幕',1],['远程擦除','数据安全擦除（可选固件级）',1],
+  ['BYOD 支持','个人设备仅纳管工作区数据',1],['多租户管理','隔离租户数据与策略边界',1],['分级管理','总部/分支/部门分级授权',1],
+  ['组策略管理','GPO 与自有策略模板映射',1],['角色权限管理','RBAC 四层角色体系',1],['计划任务','定时扫描/补丁/报表编排',1],
+  ['更新代理','内网分发病毒库与补丁',1],['缓存更新','就近缓存加速终端升级',1],['自我保护','防卸载、防进程终止、防注册表篡改',1],
+  ['内核篡改防护','驱动签名校验与内核回调保护',1],['防卸载','无授权无法移除代理',1]]},
+ {g:'资产清点',icon:'server',items:[
+  ['资产清点','硬件/软件/账户自动盘点',1],['软件清单','已安装软件与版本台账',1],['硬件变更监控','内存/磁盘/外设变更告警',1],
+  ['终端定位','Wi-Fi/有线/IP 定位终端位置',1],['网络准入控制','合规终端才可接入网络',1],['安全基线检查','等保/ CIS 基线自动核查',1],['配置合规','弱口令/来宾账户等配置稽核',1]]},
+ {g:'病毒防护',icon:'shield',items:[
+  ['病毒防护','传统病毒特征检测',1],['恶意软件防护','木马/蠕虫/广告软件防护',1],['勒索软件防护','行为检测 + 文件夹保护 + 一键回滚',1],
+  ['无文件攻击防护','内存载荷与脚本链检测',1],['内存攻击防护','堆喷/ROP/内存注入检测',1],['漏洞利用防护','Exploit 特征与缓解措施',1],
+  ['AI/机器学习检测','本地模型实时打分',1],['行为分析','进程行为链式分析',1],['云查杀','云端海量特征与信誉',1],
+  ['APT 防护','多阶段攻击关联检测',1],['僵尸网络防护','Botnet 通信行为识别',1],['挖矿防护','挖矿进程与矿池阻断',1],
+  ['间谍软件防护','键盘记录/屏幕捕获检测',1],['Rootkit 防护','内核级 Rootkit 检测',1],['引导区病毒防护','MBR/UEFI 引导扇区校验',1],
+  ['脚本控制','脚本执行策略与沙箱',1],['PowerShell 防护','AMSI + 语言模式管控',1],['宏病毒防护','Office 宏静态+动态分析',1],
+  ['浏览器保护','恶意扩展/下载/页面防护',1],['身份威胁检测','异常登录与凭证滥用',1],['零信任集成','对接 ZTNA / 条件访问',1]]},
+ {g:'扫描引擎',icon:'scan',items:[
+  ['实时扫描','文件创建/修改即时检测',1],['定时扫描','自定义周期全盘/快速扫描',1],['手动扫描','一键快速/全面/自定义',1],
+  ['离线扫描','离线特征库兜底检测',1],['U盘扫描','可移动介质自动扫描',1],['沙盒测试病毒','样本静态分析 + 行为模拟，不执行代码',1]]},
+ {g:'网络防护',icon:'globe',items:[
+  ['Web 威胁防护','恶意网页与下载拦截',1],['URL 过滤','URL 分类库与自定义策略',1],['DNS 过滤','恶意域名解析阻断',1],
+  ['邮件威胁防护','附件沙箱+链接重写',1],['反钓鱼','钓鱼 URL/仿冒域名识别',1],['反垃圾邮件','垃圾邮件引擎过滤',1],
+  ['网络入侵防御','IDS/IPS 规则引擎',1],['主机入侵防御','HIPS 行为规则',1],['防火墙管理','入站/出站/应用规则',1],
+  ['C2 通信阻断','外联心跳与隧道识别',1],['恶意IP阻断','威胁情报 IP 自动封禁',1],['端口控制','端口级访问策略',1],
+  ['协议控制','应用协议白名单',1],['带宽控制','终端带宽限额',0]]},
+ {g:'应用与设备控制',icon:'apps',items:[
+  ['应用控制','应用黑/白名单与执行拦截',1],['设备控制','USB/蓝牙/摄像头等设备策略',1],['外设管控','外设类型细粒度管控',1],
+  ['打印管控','打印行为审计与审批',1],['截屏管控','截屏/录屏行为检测与阻断',0]]},
+ {g:'数据防泄漏 (DLP)',icon:'lock',items:[
+  ['数据防泄漏','敏感数据传输检测',1],['敏感数据识别','身份证/银行卡/密钥等正则+模型识别',1],['数据分类分级','数据资产分级打标',1],
+  ['加密管理','BitLocker / 文件加密策略',1]]},
+ {g:'漏洞与补丁',icon:'patch',items:[
+  ['漏洞扫描','CVE 资产匹配扫描',1],['补丁管理','补丁审批/灰度/强制',1],['软件更新管理','三方软件版本纳管',1],
+  ['应用白名单','仅允许可信应用运行',1],['驱动加载控制','驱动签名与哈希校验',1]]},
+ {g:'EDR / XDR / MDR',icon:'pulse',items:[
+  ['EDR 端点检测与响应','终端侧检测 + 响应闭环',1],['XDR 扩展检测与响应','跨端/网/云/身份关联检测',1],['MDR 托管检测与响应','7×24 专家托管服务',1],
+  ['威胁狩猎','主动检索可疑行为',1],['沙箱分析','静态+动态样本分析',1],['威胁情报','多源情报联动',1],
+  ['攻击链还原','ATT&CK 攻击链可视化',1],['事件时间线','端点事件全量时间线',1],['根因分析','自动根因定位',1],
+  ['自动遏制','威胁自动隔离与阻断',1],['终端隔离','网络/终端隔离',1],['进程终止','恶意进程终止',1],
+  ['文件隔离','恶意文件隔离',1],['隔离区管理','隔离文件查看/恢复/删除',1],['攻击回滚','进程与注册表回滚',1],
+  ['遥测数据收集','全量遥测采集与留存',1],['取证调查','内存/磁盘取证导出',1],['仪表盘','安全态势总览',1],
+  ['MITRE ATT&CK 映射','技战术映射与覆盖度',1],['用户行为分析','UEBA 用户画像偏离',1],['横向移动检测','内网渗透路径识别',1],
+  ['凭证窃取防护','LSASS/DPAPI 访问防护',1],['暴力破解检测','登录失败阈值检测',1],['异常登录检测','时间/地点/设备异常',1]]},
+ {g:'场景防护',icon:'cloud',items:[
+  ['云工作负载防护','CWPP 主机安全',1],['服务器防护','服务器专项加固',1],['容器防护','容器镜像/运行时防护',1],
+  ['VDI 防护','虚拟桌面批量防护',1],['移动端防护','iOS/Android MDM+安全',1],['离线终端防护','离线策略与本地检测',1]]},
+ {g:'合规与审计',icon:'audit',items:[
+  ['合规检查','多标准合规体检',1],['等保合规','等保2.0 三级对照',1],['日志审计','安全日志留存审计',1],
+  ['操作审计','管理员操作留痕',1],['管理员审计','特权账号使用审计',1]]},
+ {g:'通知与集成',icon:'link',items:[
+  ['告警通知','邮件/短信/IM/App 多渠道',1],['报表生成','日报/周报/月报自动生成',1],['SIEM 集成','对接 Splunk/Qradar 等',1],
+  ['SOAR 集成','自动化剧本联动',1],['Syslog 转发','标准 Syslog 输出',1],['REST API','全量 API 二次开发',1],
+  ['AD/LDAP 防护集成','身份目录联动',1],['SSO 单点登录','OIDC/SAML 登录',1],['多因素认证','TOTP/短信/扫码 MFA',1]]},
+ {g:'恢复与响应',icon:'restore',items:[
+  ['勒索解密','勒索病毒解密工具集',1],['备份恢复','策略化文件备份',1],['文件版本恢复','历史版本找回',1],
+  ['快照恢复','系统快照回滚',1],['系统恢复','受损系统修复',1],['事件响应','预案化响应流程',1]]},
+ {g:'基础规则',icon:'filter',items:[
+  ['白名单/黑名单','文件/哈希/路径/应用',1],['排除项管理','误报排除与信任',1],['防策略模板','开箱即用策略模板',1]]}
+];
+</script>

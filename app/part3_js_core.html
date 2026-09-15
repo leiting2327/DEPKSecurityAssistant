@@ -1,0 +1,189 @@
+<script>
+/* ================= 图标库 (Fluent 风格) ================= */
+const I = {
+shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l8 3v6.1c0 5.3-3.4 9.6-8 11.4-4.6-1.8-8-6.1-8-11.4V5.5z"/></svg>',
+shieldck:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l8 3v6.1c0 5.3-3.4 9.6-8 11.4-4.6-1.8-8-6.1-8-11.4V5.5z"/><path d="M8.5 12l2.4 2.4 4.6-4.8"/></svg>',
+scan:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3M11 8v6M8 11h6"/></svg>',
+firewall:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l7 2.6v5.1c0 4.8-3 8.8-7 10.3-4-1.5-7-5.5-7-10.3V5.6z"/><path d="M8.8 12l2.2 2.2 4.2-4.4"/></svg>',
+globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.6 3.8 5.7 3.8 9S14.5 18.4 12 21c-2.5-2.6-3.8-5.7-3.8-9S9.5 5.6 12 3z"/></svg>',
+apps:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
+patch:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14.7 6.3a4.5 4.5 0 016.4 6.4l-8.4 8.4H3v-9.7z"/><circle cx="8" cy="8" r="1.6"/></svg>',
+pulse:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2.5-6 4 12 2.5-6H21"/></svg>',
+intel:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3"/><circle cx="5" cy="5" r="2"/><circle cx="19" cy="5" r="2"/><circle cx="5" cy="19" r="2"/><circle cx="19" cy="19" r="2"/><path d="M6.8 6.6l3 2.6M17.2 6.6l-3 2.6M6.8 17.4l3-2.6M17.2 17.4l-3-2.6"/></svg>',
+audit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5H4.5a1.5 1.5 0 00-1.5 1.5v13A1.5 1.5 0 004.5 21h13a1.5 1.5 0 001.5-1.5V15"/><path d="M9 12.5l2 2 7-7"/><path d="M12.5 5.5h8v8"/></svg>',
+console:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>',
+gear:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="3.2"/><path d="M19 12a7 7 0 00-.15-1.4l2-1.6-2-3.4-2.4 1a7 7 0 00-2.4-1.4L13.6 2h-3.2l-.45 2.6a7 7 0 00-2.4 1.4l-2.4-1-2 3.4 2 1.6A7 7 0 005 12c0 .48.05.95.15 1.4l-2 1.6 2 3.4 2.4-1a7 7 0 002.4 1.4l.45 2.6h3.2l.45-2.6a7 7 0 002.4-1.4l2.4 1 2-3.4-2-1.6c.1-.45.15-.92.15-1.4z"/></svg>',
+bell:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M18 8a6 6 0 10-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>',
+search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>',
+play:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5z"/></svg>',
+pause:'<svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 5h4v14H7zM13 5h4v14h-4z"/></svg>',
+trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+restore:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 12a8 8 0 101.6-4.8"/><path d="M4 4v4h4"/></svg>',
+download:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a1.5 1.5 0 001.5 1.5h13A1.5 1.5 0 0020 19v-2"/></svg>',
+upload:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 16V5m0 0L8 9m4-4l4 4"/><path d="M4 17v2a1.5 1.5 0 001.5 1.5h13A1.5 1.5 0 0020 19v-2"/></svg>',
+folder:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 012-2h4l2 2.5h8a2 2 0 012 2V17a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>',
+usb:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="3" width="8" height="6" rx="1.5"/><path d="M12 9v8m0 0a3 3 0 100-6m0 6a3 3 0 11-3-3"/><path d="M12 6h3l1.5 3M12 6H9l-1.5 3"/></svg>',
+cpu:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="7" y="7" width="10" height="10" rx="1.5"/><path d="M10 3v3m4-3v3M10 18v3m4-3v3M3 10h3m-3 4h3M18 10h3m-3 4h3"/></svg>',
+lock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8 10.5V7.8a4 4 0 018 0v2.7"/><circle cx="12" cy="15.5" r="1.6"/></svg>',
+key:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="8" cy="15" r="4.5"/><path d="M11.5 11.5L20 3m-3 3l2.5 2.5M15 8l2.5 2.5"/></svg>',
+user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="8" r="4"/><path d="M4.5 21a7.5 7.5 0 0115 0"/></svg>',
+users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20a6.5 6.5 0 0113 0"/><path d="M16 4.6a3.5 3.5 0 010 6.8M17.5 14.4a6.5 6.5 0 014 5.6"/></svg>',
+alert:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5L22 20H2z"/><path d="M12 9.5v4.5m0 3v.5"/></svg>',
+check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
+x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/></svg>',
+server:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="4" width="17" height="6.5" rx="1.6"/><rect x="3.5" y="13.5" width="17" height="6.5" rx="1.6"/><path d="M7 7.2h.01M7 16.7h.01M11 7.2h6M11 16.7h6"/></svg>',
+cloud:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M7 18a4.5 4.5 0 01-.4-9A5.8 5.8 0 0117.6 8 3.8 3.8 0 0117 18z"/></svg>',
+phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="7" y="3" width="10" height="18" rx="2"/><path d="M10.5 18h3"/></svg>',
+laptop:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="5" width="16" height="11" rx="1.6"/><path d="M2.5 19h19M9 16.5v2h6v-2"/></svg>',
+terminal:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 9l3 3-3 3M13 15h4"/></svg>',
+db:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><ellipse cx="12" cy="5.5" rx="7.5" ry="3"/><path d="M4.5 5.5v13c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-13"/><path d="M4.5 12c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3"/></svg>',
+chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 20V9.5M10 20V4M16 20v-8M21 20H3"/></svg>',
+filter:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 6h16M7 12h10M10 18h4"/></svg>',
+eye:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+plug:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 7V3m6 4V3M7 7h10v4a5 5 0 01-10 0zM12 16v5"/></svg>',
+refresh:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M20 12a8 8 0 11-2.3-5.6M20 3v4h-4"/></svg>',
+plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg>',
+edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M14.5 5.5l4 4L8 20H4v-4z"/><path d="M12.5 7.5l4 4"/></svg>',
+arrowR:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 12h16m0 0l-6-6m6 6l-6 6"/></svg>',
+warn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3.5L22 20H2z"/><path d="M12 9.5v4.5m0 3v.5"/></svg>',
+info:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8.5"/><path d="M12 11v5m0-8v.5"/></svg>',
+wifi:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2.5 9a15 15 0 0119 0M5.5 12.5a10.5 10.5 0 0113 0M8.5 16a6 6 0 017 0"/><circle cx="12" cy="19" r="1.3"/></svg>',
+mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 7l8.5 6 8.5-6"/></svg>',
+file:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 2.5h8L20 8v13.5H6z"/><path d="M14 2.5V8h6M9.5 13h6m-6 3.5h6"/></svg>',
+layers:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg>',
+radar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5"/><path d="M12 12l6.5-6.5M12 3v3"/></svg>',
+target:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4.5"/><circle cx="12" cy="12" r="1.2"/></svg>',
+flag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 21V4m0 1h12l-2 4 2 4H5"/></svg>',
+zap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M13 2L4.5 13.5H11L9.5 22 19 10h-6.5z"/></svg>',
+save:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M5 3h12l2 2v16H5z"/><path d="M8 3v6h8V3M8 21v-6h8v6"/></svg>',
+copy:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V6a2 2 0 00-2-2H6a2 2 0 00-2 2v8a2 2 0 002 2h2"/></svg>',
+script:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M8 2.5h9a2 2 0 012 2v15a2 2 0 01-2 2H7a2 2 0 01-2-2V6.5z"/><path d="M8 2.5V6h6v-3.5M10.5 12h4M10.5 15.5h4M8.5 12h.01"/></svg>',
+link:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9.5 14.5l5-5M8 12l-2.5 2.5a3.5 3.5 0 005 5L13 17M16 12l2.5-2.5a3.5 3.5 0 00-5-5L11 7"/></svg>',
+shieldX:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l8 3v6.1c0 5.3-3.4 9.6-8 11.4-4.6-1.8-8-6.1-8-11.4V5.5z"/><path d="M9.5 9.5l5 5m0-5l-5 5"/></svg>',
+shieldWarn:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l8 3v6.1c0 5.3-3.4 9.6-8 11.4-4.6-1.8-8-6.1-8-11.4V5.5z"/><path d="M12 8.5v4.5m0 3v.5"/></svg>',
+monitor:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="4" width="18" height="12.5" rx="1.8"/><path d="M9 20h6M12 16.5V20"/></svg>',
+shieldLock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l8 3v6.1c0 5.3-3.4 9.6-8 11.4-4.6-1.8-8-6.1-8-11.4V5.5z"/><rect x="8.5" y="10.5" width="7" height="5.5" rx="1.2"/><path d="M10 10.5V9a2 2 0 014 0v1.5"/></svg>',
+erase:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 4v3m0 10v3M4.5 12H3m18 0h-1.5M6.8 6.8l2 2m6.4 6.4l2 2m0-10.4l-2 2M6.8 17.2l2-2"/></svg>',
+siren:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M6 10a6 6 0 0112 0v5l1.5 3h-15L6 15z"/><path d="M9.5 21a2.5 2.5 0 005 0"/><path d="M4.5 8l2 1M19.5 8l-2 1M12 4V2.5"/></svg>',
+grid:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.6"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.6"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.6"/></svg>',
+shieldZap:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M12 2.5l8 3v6.1c0 5.3-3.4 9.6-8 11.4-4.6-1.8-8-6.1-8-11.4V5.5z"/><path d="M12.5 7.5l-3 4.5h3l-1.5 4.5 4-5.5h-3z"/></svg>'
+};
+
+/* ================= 工具函数 ================= */
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>'id'+Math.random().toString(36).slice(2,10);
+const now=()=>new Date();
+function fmtDT(d){d=d||new Date();const p=n=>String(n).padStart(2,'0');return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;}
+function relT(ts){const s=(Date.now()-ts)/1000;if(s<60)return '刚刚';if(s<3600)return Math.floor(s/60)+' 分钟前';if(s<86400)return Math.floor(s/3600)+' 小时前';return Math.floor(s/86400)+' 天前';}
+function fmtSize(b){if(b==null)return'-';if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';if(b<1073741824)return(b/1048576).toFixed(1)+' MB';return(b/1073741824).toFixed(2)+' GB';}
+async function sha256(buf){const d=await crypto.subtle.digest('SHA-256',buf);return[...new Uint8Array(d)].map(b=>b.toString(16).padStart(2,'0')).join('');}
+function entropy(buf){const len=Math.min(buf.length,65536);if(len<8)return 0;const freq=new Array(256).fill(0);for(let i=0;i<len;i++)freq[buf[i]]++;let e=0;for(let i=0;i<256;i++){if(freq[i]){const p=freq[i]/len;e-=p*Math.log2(p);}}return e;}
+function toBlobUrl(data){return URL.createObjectURL(new Blob([data]));}
+function download(name,content,mime){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type:mime||'application/octet-stream'}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);}
+function copyText(t){navigator.clipboard&&navigator.clipboard.writeText(t).then(()=>toast('已复制到剪贴板','ok')).catch(()=>toast('复制失败','err'));}
+const colorMap={green:'#35c759',amber:'#f5b82e',red:'#f44b5a',blue:'#4cc2ff',purple:'#b884f5',cyan:'#2fd8c7',gray:'#8f8f8f'};
+
+/* ================= 通知 Toast ================= */
+function toast(msg,type='info'){const box=$('#toasts');const t=document.createElement('div');t.className='toast '+type;
+  const ico=type==='ok'?I.check:type==='err'?I.x:type==='warn'?I.warn:I.info;
+  t.innerHTML=`<span class="t-ico">${ico}</span><span>${esc(msg)}</span>`;
+  box.appendChild(t);setTimeout(()=>{t.classList.add('out');setTimeout(()=>t.remove(),260);},3400);}
+
+/* ================= 弹窗 ================= */
+let modalCb=null;
+function modal(html,{title='',okTxt='确定',cancelTxt='取消',showCancel=true,okClass='btn-primary',onOk=null,wide=false}={}){
+  const m=$('#modalMask'),b=$('#modalBox');
+  b.className='modal'+(wide?' wide':'');
+  b.innerHTML=`<div class="modal-head"><h3>${esc(title)}</h3><button class="icon-btn" id="mClose">${I.x}</button></div>
+  <div class="modal-body">${html}</div>
+  ${showCancel||onOk?`<div class="modal-foot"><button class="btn btn-ghost" id="mCancel">${esc(cancelTxt)}</button><button class="btn ${okClass}" id="mOk">${esc(okTxt)}</button></div>`:''}`;
+  m.classList.add('show');modalCb=onOk;
+  const close=()=>{m.classList.remove('show');modalCb=null;};
+  b.querySelector('#mClose').onclick=close;
+  const c=b.querySelector('#mCancel');if(c)c.onclick=close;
+  const o=b.querySelector('#mOk');if(o)o.onclick=()=>{const r=onOk?onOk():true;if(r!==false)close();};
+  m.onclick=e=>{if(e.target===m)close();};
+  return close;
+}
+function confirmDlg(title,desc,onOk,okTxt='确定',okClass='btn-danger'){modal(`<p style="font-size:13.5px;line-height:1.7">${desc}</p>`,{title,okTxt,okClass,onOk});}
+function inputDlg(title,label,val,onOk){modal(`<div class="flex col" style="gap:8px"><label style="font-size:12.5px;color:var(--text-3)">${esc(label)}</label><input id="dlgInp" value="${esc(val)}"></div>`,{title,okTxt:'确定',onOk:()=>{const v=$('#dlgInp').value.trim();if(!v){toast('内容不能为空','warn');return false;}onOk(v);}});setTimeout(()=>$('#dlgInp')&&$('#dlgInp').focus(),60);}
+
+/* ================= 状态 ================= */
+const store={theme:localStorage.getItem('ds_theme')||'dark',navCollapsed:localStorage.getItem('ds_nav')==='1',page:'dashboard',tab:null,
+  realtime:true,cloud:true,ai:true,heuristic:true,firewall:true,webProt:true,mailProt:true,ids:true,selfProtect:true,
+  watchEvents:[],watchState:false,lastRealScan:null,realQ:[],procs:[],soft:[],
+  updateVer:'2026.09.15.01',engineVer:'1.0.8842',sigCount:2485136,
+  scanHist:[],quarantine:[],policies:[],endpoints:[],alerts:[],audit:[],notifs:[],rules:[],iocs:[],vulns:[],sessions:[],exclusions:[],
+  scanState:null,lastScan:null};
+const REAL=!!(window.depk&&window.depk.isElectron);
+const LS_KEY='ds_store_v1';
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify({scanHist:store.scanHist,quarantine:store.quarantine,policies:store.policies,alerts:store.alerts,audit:store.audit,notifs:store.notifs,rules:store.rules,iocs:store.iocs,vulns:store.vulns,sessions:store.sessions,exclusions:store.exclusions,realtime:store.realtime,cloud:store.cloud,ai:store.ai,heuristic:store.heuristic,firewall:store.firewall,webProt:store.webProt,mailProt:store.mailProt,ids:store.ids,selfProtect:store.selfProtect}));}catch(e){}}
+function load(){try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(!d)return;Object.assign(store,d);}catch(e){}}
+function audit(action,detail,user='管理员'){store.audit.unshift({id:uid(),time:Date.now(),action,detail,user,ip:'192.168.1.10'});if(store.audit.length>300)store.audit.length=300;save();}
+
+/* ================= SVG 图表库 ================= */
+function svgLine(sel,data,{h=150,color='var(--accent)',fill=true,labels=true,max=null,minW=null}={}){
+  const maxV=max||Math.max(...data)*1.15;const W=640,H=h,P=6;
+  const pts=data.map((v,i)=>[P+i*(W-2*P)/Math.max(1,data.length-1),H-P-(v/maxV)*(H-2*P)]);
+  const path='M'+pts.map(p=>p[0].toFixed(1)+' '+p[1].toFixed(1)).join('L');
+  const area=path+`L${pts[pts.length-1][0].toFixed(1)} ${H-P}L${pts[0][0].toFixed(1)} ${H-P}Z`;
+  let dots='';if(labels)dots=pts.map((p,i)=>`<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--panel-solid)" stroke="${color}" stroke-width="2"><title>${data[i]}</title></circle>`).join('');
+  const gid=uid();
+  $(sel).innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">
+    <defs><linearGradient id="${gid}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".35"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    ${fill?`<path d="${area}" fill="url(#${gid})"/>`:''}<path d="${path}" fill="none" stroke="${color}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>${dots}</svg>`;
+}
+function svgBars(sel,items,{h=170,color='var(--accent)'}={}){
+  const W=640,H=h,P=8;const maxV=Math.max(...items.map(i=>i.v))*1.2;
+  const bw=(W-2*P)/items.length*0.55;
+  const bars=items.map((it,i)=>{const x=P+i*(W-2*P)/items.length+(W-2*P)/items.length*0.225;const bh=Math.max(2,(it.v/maxV)*(H-30));const y=H-22-bh;
+    return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" rx="4" fill="${it.c||color}"><title>${esc(it.l)}: ${it.v}</title></rect><text x="${(x+bw/2).toFixed(1)}" y="${H-8}" text-anchor="middle" font-size="10" fill="var(--text-3)">${esc(it.l)}</text>`;}).join('');
+  $(sel).innerHTML=`<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none">${bars}</svg>`;
+}
+function svgDonut(sel,items,{size=150,hole=0.62}={}){ // items:[{l,v,c}]
+  const R=size/2, r=R*hole, C=2*Math.PI*R, total=items.reduce((s,i)=>s+i.v,0)||1;
+  let off=0;const segs=items.map(it=>{const frac=it.v/total;const dash=frac*C;const s=`<circle r="${R}" cx="${R}" cy="${R}" fill="none" stroke="${it.c}" stroke-width="${R-r}" stroke-dasharray="${dash} ${C-dash}" stroke-dashoffset="${-off}" transform="rotate(-90 ${R} ${R})"><title>${esc(it.l)}: ${it.v} (${(frac*100).toFixed(1)}%)</title></circle>`;off+=dash;return s;}).join('');
+  $(sel).innerHTML=`<svg viewBox="0 0 ${size} ${size}" style="width:${size}px;height:${size}px;margin:0 auto">${segs}<circle r="${r}" cx="${R}" cy="${R}" fill="var(--panel-solid)" stroke="none"/></svg>`;
+}
+function spark(sel,data,color){svgLine(sel,data,{h:44,labels:false,fill:true,color});}
+function scoreRing(sel,val,color){const R=56,C=2*Math.PI*R;$(sel).innerHTML=`<div class="score-ring"><svg viewBox="0 0 120 120"><circle r="${R}" cx="60" cy="60" fill="none" stroke="var(--panel-2)" stroke-width="10"/><circle r="${R}" cx="60" cy="60" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${(val/100*C).toFixed(1)} ${C.toFixed(1)}"/></svg><div class="sr-txt"><b style="color:${color}">${val}</b><span>/ 100</span></div></div>`;}
+
+/* ================= 路由 ================= */
+const NAV=[
+ {id:'dashboard',l:'概览',i:'shieldck'},
+ {id:'protection',l:'病毒防护',i:'shield'},
+ {id:'network',l:'网络防护',i:'firewall'},
+ {id:'device',l:'应用与设备',i:'apps'},
+ {id:'patching',l:'漏洞与补丁',i:'patch'},
+ {id:'edr',l:'EDR 中心',i:'pulse'},
+ {id:'local',l:'本机管理',i:'monitor'},
+ {id:'threat',l:'威胁情报',i:'intel'},
+ {id:'compliance',l:'合规与审计',i:'audit'},
+ {id:'mgmt',l:'集中管理',i:'console'}
+];
+const PAGE_TITLE={dashboard:'概览',protection:'病毒和威胁防护',network:'防火墙和网络保护',device:'应用与设备控制',patching:'漏洞与补丁管理',edr:'端点检测与响应 (EDR)',local:'本机管理（真实数据）',threat:'威胁情报与沙箱',compliance:'合规、审计与报表',mgmt:'集中管理控制台',settings:'设置'};
+function go(page,tab){store.page=page;store.tab=tab||null;save();render();}
+function renderNav(){
+  const n=$('#nav');
+  n.innerHTML=`<div class="nav-brand"><div class="logo">${I.shieldck}</div><div class="brand-txt"><b>DEPK Security</b><span>ASSISTANT</span></div>
+  <button class="icon-btn" id="navCollapse" style="margin-left:auto" title="折叠导航">${I.grid}</button></div>
+  <div class="nav-items">${NAV.map(x=>`<div class="nav-item${store.page===x.id?' active':''}" data-go="${x.id}"><span class="ni">${I[x.i]}</span><span class="lbl">${x.l}</span></div>`).join('')}</div>
+  <div class="nav-foot"><div class="nav-item" data-go="settings"><span>${I.gear}</span><span class="lbl f-txt">设置</span></div></div>`;
+  $$('#nav .nav-item').forEach(el=>el.onclick=()=>go(el.dataset.go));
+  $('#navCollapse').onclick=()=>{store.navCollapsed=!store.navCollapsed;save();n.classList.toggle('collapsed',store.navCollapsed);};
+  n.classList.toggle('collapsed',store.navCollapsed);
+}
+function pageHead(title,sub,actions=''){
+  return `<div class="page-head"><div><h1>${title}</h1><p>${sub}</p></div><div class="page-actions">${actions}</div></div>`;
+}
+function tabBar(tabs,cur,page){ // tabs:[{id,l,count?}]
+  return `<div class="tabbar">${tabs.map(t=>`<div class="tab${t.id===cur?' active':''}" data-tab="${t.id}">${t.l}${t.count!=null?` <span class="badge-num" style="background:var(--panel-2);color:var(--text-2);font-size:10px;height:17px;min-width:17px">${t.count}</span>`:''}</div>`).join('')}</div>`;
+}
+let activePageCb=null;
+function bindTabs(container,page){$$(container+' .tab[data-tab]').forEach(el=>el.onclick=()=>go(page,el.dataset.tab));}
+
+/* 主题 */
+function applyTheme(){document.documentElement.dataset.theme=store.theme;$('#themeIco').outerHTML=I[store.theme==='dark'?'scan':'zap'].replace('<svg','<svg id="themeIco"');}
+</script>

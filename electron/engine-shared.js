@@ -1,0 +1,59 @@
+/* =====================================================
+   DEPK Security Assistant - 共享检测引擎（纯函数，无 DOM 依赖）
+   同时被：渲染进程（浏览器版） 与 主进程（Electron 真实扫描）加载
+   ===================================================== */
+(function(global){
+'use strict';
+const PAT={ransom:/WANNACRY|WNCRY|RYUK|LOCKBIT|YOUR FILES ARE ENCRYPTED|HOW TO DECRYPT|\.LOCK\b|README_TO_DECRYPT|vssadmin[\s\S]{0,20}delete|bcdedit[\s\S]{0,20}recoveryenabled/i,
+ miner:/XMRIG|STRATUM\+TCP|MINERGATE|NICEHASH|KAWPOW|CRYPTONIGHT|POOL\.XMR/i,
+ script:/invoke-expression|IEX\s*\(|FromBase64String|DownloadString|DownloadFile|WScript\.Shell|MSHTA|Regsvr32[\s\S]{0,30}scrobj|certutil[\s\S]{0,30}urlcache|bitsadmin[\s\S]{0,30}transfer|net\s+user[\s\S]{0,20}\/add|mimikatz|DisableRealtimeMonitoring|Add-MpPreference|Set-MpPreference|cmd\.exe\s+\/c|powershell\s+-enc|GetAsyncKeyState|SetWindowsHookEx|WH_KEYBOARD_LL|VirtualAllocEx|CreateRemoteThread|Shell\.Application|FSO\.OpenTextFile/i,
+ macro:/AUTOOPEN|WORKBOOK_OPEN|DOCUMENT_OPEN|vbaProject|Auto_Open|VBA_STANDARD|shell\s*\(/i,
+ phish:/URGENT.*INVOICE|ACCOUNT.*VERIFY|GIFT CARD|WIRE TRANSFER|BITCOIN.*PAYMENT/i,
+ spy:/GetAsyncKeyState|SetWindowsHookEx|WH_KEYBOARD|Clipboard\.GetText|keylog|ScreenCapture|OpenCV.*VideoCapture/i,
+ autostart:/\[autorun\]|Shell\s*=\s*command|open\s*=\s*[a-z]:\\/i};
+function rd32(b,o){if(o+4>b.length)return 0;return b[o]|(b[o+1]<<8)|(b[o+2]<<16)|(b[o+3]<<24);}
+function entropy(buf){const len=Math.min(buf.length,65536);if(len<8)return 0;const freq=new Array(256).fill(0);for(let i=0;i<len;i++)freq[buf[i]]++;let e=0;for(let i=0;i<256;i++){if(freq[i]){const p=freq[i]/len;e-=p*Math.log2(p);}}return e;}
+function isExt(name,exts){const i=name.lastIndexOf('.');if(i<0)return false;return exts.includes(name.slice(i+1).toLowerCase());}
+function analyzeBuf(buf,name){
+  const rules=[], str=(()=>{const max=Math.min(buf.length,1048576);let s='';for(let i=0;i<max;i++){s+=String.fromCharCode(buf[i]);if(s.length>262144){s=s.slice(-262144);}}return s;})();
+  const upper=str.toUpperCase();const en=entropy(buf);const isPE=buf[0]===0x4D&&buf[1]===0x5A;const nm=name||'';
+  if(str.includes('X5O!P%@AP[4\\PZX54(P^)7CC)7}$EICAR-STANDARD-ANTIVIRUS-TEST-FILE!$H+H*'))rules.push({id:'EICAR',name:'EICAR 标准测试文件',type:'测试病毒',sev:'low',score:20,desc:'标准防病毒测试特征串，用于验证防护是否生效'});
+  let peInfo=null;
+  if(isPE&&buf.length>0x40){try{const peOff=buf[0x3C]|(buf[0x3D]<<8)|(buf[0x3E]<<16)|(buf[0x3F]<<24);if(peOff>0&&peOff+6<buf.length&&buf[peOff]===0x50&&buf[peOff+1]===0x45){
+    const magic=buf[peOff+24]|(buf[peOff+25]<<8);const is64=magic===0x20B;const nsec=buf[peOff+6]|(buf[peOff+7]<<8);const opt=peOff+24;const secOff=opt+(is64?240:224);const ddOff=opt+(is64?112:96);
+    const secs=[];for(let i=0;i<nsec&&i<64;i++){const o=secOff+i*40;if(o+40>buf.length)break;const nm2=String.fromCharCode(...buf.slice(o,o+8)).replace(/\0+$/,'');secs.push({name:nm2,vSize:rd32(buf,o+8),vAddr:rd32(buf,o+12),rawSize:rd32(buf,o+16),rawPtr:rd32(buf,o+20)});}
+    const impRva=rd32(buf,ddOff+8);const impSize=rd32(buf,ddOff+12);const rva2off=rva=>{for(const s of secs){if(rva>=s.vAddr&&rva<s.vAddr+Math.max(s.rawSize,s.vSize))return s.rawPtr+(rva-s.vAddr);}return -1;};
+    let dlls=[],funcs=[];if(impRva&&impSize){const io=rva2off(impRva);if(io>=0){for(let d=0;d<64;d++){const o=io+d*20;if(o+20>buf.length)break;const nameRva=rd32(buf,o+12);const no=nameRva?rva2off(nameRva):-1;if(no<0)break;let dll='';for(let j=no;j<buf.length&&j<no+128;j++){if(buf[j]===0)break;dll+=String.fromCharCode(buf[j]);}dlls.push(dll.toLowerCase());const ftRva=rd32(buf,o+16);const fo=ftRva?rva2off(ftRva):-1;if(fo>0){for(let k=0;k<128;k++){const w=rd32(buf,fo+k*4);const isOrd=w&0x80000000;if(w===0)break;if(!isOrd){const fo2=rva2off(w&0x7FFFFFFF);if(fo2>0){let fn='';for(let j=fo2;j<buf.length&&j<fo2+64;j++){if(buf[j]===0)break;fn+=String.fromCharCode(buf[j]);}if(fn){funcs.push(fn);}}}}}}
+    }}
+    peInfo={secs,dlls,funcs,is64,packed:secs.some(s=>/UPX0|UPX1|\.packed/i.test(s.name))||upper.includes('UPX!')};
+  }}catch(e){}}
+  if(peInfo){
+    if(peInfo.packed)rules.push({id:'PACKED',name:'加壳程序',type:'风险程序',sev:'med',score:45,desc:'检测到 UPX/加壳特征，加壳常见于恶意样本规避检测'});
+    const inj=['VirtualAlloc','VirtualAllocEx','WriteProcessMemory','CreateRemoteThread','SetThreadContext','NtUnmapViewOfSection'];
+    const hit=inj.filter(f=>peInfo.funcs.includes(f));
+    if(hit.length>=3)rules.push({id:'INJECT',name:'进程注入特征',type:'木马/远控',sev:'high',score:80,desc:'导入表含进程注入 API 组合：'+hit.join('、')});
+    const key=['GetAsyncKeyState','SetWindowsHookExA','SetWindowsHookExW'];
+    if(key.some(f=>peInfo.funcs.includes(f)))rules.push({id:'KEYLOG',name:'键盘记录特征',type:'间谍软件',sev:'high',score:78,desc:'导入键盘钩子/按键状态 API，疑似键盘记录器'});
+    const bypass=['RtlSetProcessIsCritical','NtSetInformationProcess','DebugActiveProcess'];
+    if(bypass.filter(f=>peInfo.funcs.includes(f)).length>=2)rules.push({id:'ANTIDBG',name:'反调试特征',type:'风险程序',sev:'med',score:50,desc:'导入反调试/反分析 API'});
+    if(en>7.3&&!peInfo.packed)rules.push({id:'HENT',name:'高熵可疑代码',type:'风险程序',sev:'med',score:40,desc:'代码段熵值 '+en.toFixed(2)+' 异常偏高，疑似加密/混淆载荷'});
+  }
+  if(PAT.ransom.test(str))rules.push({id:'RANSOM',name:'勒索软件特征',type:'勒索软件',sev:'crit',score:92,desc:'命中勒索声明/卷影删除/自启动等勒索行为特征'});
+  if(PAT.miner.test(str))rules.push({id:'MINER',name:'挖矿程序特征',type:'挖矿程序',sev:'high',score:82,desc:'命中矿池地址/挖矿算法特征'});
+  const scriptExt=isExt(nm,['ps1','bat','cmd','js','vbs','hta','scr','wsf']);
+  if(scriptExt&&PAT.script.test(str))rules.push({id:'SCRIPT',name:'恶意脚本特征',type:'脚本病毒',sev:'high',score:75,desc:'脚本包含下载执行/编码载荷/持久化等危险命令'});
+  if(PAT.spy.test(str)&&(scriptExt||isPE))rules.push({id:'SPY',name:'间谍行为特征',type:'间谍软件',sev:'high',score:76,desc:'检测到键盘记录/屏幕捕获行为代码'});
+  if((isExt(nm,['docm','xlsm','pptm','doc','xls','ppt'])||upper.includes('PK'))&&PAT.macro.test(str))rules.push({id:'MACRO',name:'宏病毒特征',type:'宏病毒',sev:'med',score:58,desc:'Office 文档含可疑 VBA 宏（AutoOpen/Shell）'});
+  if(nm.toLowerCase()==='autorun.inf'&&PAT.autostart.test(str))rules.push({id:'AUTORUN',name:'Autorun 蠕虫',type:'蠕虫',sev:'med',score:55,desc:'可移动介质自启动项，U 盘蠕虫典型载体'});
+  const dn=nm.toLowerCase();
+  if(/\.(exe|scr|bat|cmd|js|vbs|ps1|jar|hta|com|pif)(\.|$)/i.test(dn)&&/\.(doc|pdf|xls|jpg|png|zip|rar)\./.test(dn))rules.push({id:'DBLEXT',name:'双扩展名伪装',type:'木马',sev:'high',score:72,desc:'文件使用双扩展名伪装常见文档格式'});
+  if(PAT.phish.test(str)&&isExt(nm,['eml','msg','html','htm']))rules.push({id:'PHISH',name:'钓鱼邮件特征',type:'钓鱼攻击',sev:'med',score:52,desc:'邮件内容命中紧急付款/凭证验证等钓鱼话术'});
+  const crit=rules.filter(r=>r.sev==='crit'),high=rules.filter(r=>r.sev==='high'),med=rules.filter(r=>r.sev==='med');
+  let verdict='无威胁',sev='low',score=0;
+  if(crit.length){verdict=crit[0].type;sev='crit';score=Math.max(...crit.map(r=>r.score));}
+  else if(high.length){verdict=high[0].type;sev='high';score=Math.max(...high.map(r=>r.score));}
+  else if(med.length){verdict=med[0].type;sev='med';score=Math.max(...med.map(r=>r.score));}
+  return {verdict,sev,score,rules,entropy:en,pe:peInfo};
+}
+global.DEPKEngine={PAT,entropy,analyzeBuf,rd32,isExt};
+})(typeof window!=='undefined'?window:globalThis);
