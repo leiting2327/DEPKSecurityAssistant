@@ -1,0 +1,480 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DEPK Security Assistant - 终端安全助手 · 永久免费</title>
+<meta name="description" content="DEPK Security Assistant - 面向个人与组织的 Windows 终端安全助手，Win11 Fluent 深色 UI，本地引擎真实可用，永久免费开源。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect width='24' height='24' rx='6' fill='%23007acc'/%3E%3Cpath d='M12 3.5 5 6.2v5.1c0 4.3 2.9 7.4 7 9.2 4.1-1.8 7-4.9 7-9.2V6.2L12 3.5z' fill='white' opacity='.92'/%3E%3Cpath d='M9.2 12.1l2 2 3.6-3.9' stroke='%23007acc' stroke-width='1.8' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --bg:#0f1115; --bg2:#161a22; --bg3:#1b212c;
+    --card:#1a2029; --card2:#202834;
+    --line:#262e3d; --line2:#31415a;
+    --tx:#e9edf4; --tx2:#9aa7bc; --tx3:#6b7890;
+    --acc:#007acc; --acc2:#4cc2ff;
+    --grn:#35c27a; --amb:#f0a63c; --red:#e5484d;
+    --rad:14px;
+    --shadow:0 14px 40px rgba(0,0,0,.38);
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:"Segoe UI Variable Display","Segoe UI","Microsoft YaHei UI","Microsoft YaHei",system-ui,sans-serif;
+    background:radial-gradient(1200px 700px at 80% -10%,#12324f 0%,transparent 55%),
+               radial-gradient(900px 600px at -10% 20%,#1c2536 0%,transparent 55%),var(--bg);
+    color:var(--tx); line-height:1.6; overflow-x:hidden;
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:0 28px}
+  /* 顶栏 */
+  header{position:sticky;top:0;z-index:50;backdrop-filter:blur(18px);background:rgba(15,17,21,.72);border-bottom:1px solid var(--line)}
+  .nav{display:flex;align-items:center;gap:26px;height:62px}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:15.5px;letter-spacing:.2px}
+  .brand svg{width:30px;height:30px}
+  .brand small{display:block;font-size:10px;font-weight:500;color:var(--tx3);letter-spacing:1.6px}
+  .navlinks{display:flex;gap:4px;margin-left:auto}
+  .navlinks a{color:var(--tx2);text-decoration:none;font-size:13.5px;padding:8px 14px;border-radius:8px;transition:.18s}
+  .navlinks a:hover{color:var(--tx);background:rgba(255,255,255,.06)}
+  .nav .gh{display:inline-flex;align-items:center;gap:7px;color:#c9d7ea;font-size:13px;text-decoration:none;border:1px solid var(--line2);padding:7px 13px;border-radius:9px;transition:.18s}
+  .nav .gh:hover{border-color:var(--acc2);color:var(--acc2)}
+  /* Hero */
+  .hero{padding:86px 0 60px;position:relative}
+  .hero .grid{display:grid;grid-template-columns:1.15fr .85fr;gap:44px;align-items:center}
+  .badge{display:inline-flex;align-items:center;gap:8px;background:linear-gradient(135deg,rgba(53,194,122,.14),rgba(53,194,122,.05));border:1px solid rgba(53,194,122,.35);color:var(--grn);font-size:12.5px;font-weight:600;padding:6px 13px;border-radius:999px;letter-spacing:.4px}
+  .badge svg{width:14px;height:14px}
+  .hero h1{font-size:46px;font-weight:800;line-height:1.15;margin:20px 0 6px;letter-spacing:-.5px}
+  .hero h1 em{font-style:normal;background:linear-gradient(92deg,#4cc2ff,#7f8cff);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .hero .sub{color:var(--tx2);font-size:16px;max-width:560px;margin:14px 0 28px}
+  .cta{display:flex;gap:14px;flex-wrap:wrap;align-items:center}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;font-size:14.5px;font-weight:600;padding:13px 26px;border-radius:10px;text-decoration:none;transition:.2s;border:1px solid transparent;cursor:pointer}
+  .btn.primary{background:linear-gradient(135deg,#0a84d1,#007acc);color:#fff;box-shadow:0 8px 26px rgba(0,122,204,.35)}
+  .btn.primary:hover{transform:translateY(-2px);box-shadow:0 12px 32px rgba(0,122,204,.5)}
+  .btn.ghost{border-color:var(--line2);color:var(--tx)}
+  .btn.ghost:hover{border-color:var(--acc2);color:var(--acc2);background:rgba(76,194,255,.06)}
+  .btn .ico{width:17px;height:17px}
+  .hero .meta{display:flex;gap:22px;margin-top:30px;color:var(--tx3);font-size:12.5px;flex-wrap:wrap}
+  .hero .meta b{color:var(--tx2);font-weight:600}
+  /* Hero 右侧窗口预览 */
+  .win{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);overflow:hidden}
+  .win .bar{display:flex;align-items:center;gap:7px;padding:11px 14px;background:var(--bg3);border-bottom:1px solid var(--line)}
+  .win .bar i{width:11px;height:11px;border-radius:50%}
+  .win .bar i:nth-child(1){background:#ff5f57}.win .bar i:nth-child(2){background:#febc2e}.win .bar i:nth-child(3){background:#28c840}
+  .win .bar span{margin-left:10px;font-size:11.5px;color:var(--tx3)}
+  .win .body{padding:18px}
+  .win .row{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:9px;font-size:13px}
+  .win .row:nth-child(odd){background:rgba(255,255,255,.03)}
+  .win .row .l{display:flex;align-items:center;gap:9px}
+  .win .row .dot{width:8px;height:8px;border-radius:50%}
+  .win .row .g{color:var(--tx3);font-size:12px}
+  .meter{height:6px;border-radius:4px;background:var(--bg3);margin:12px 12px 0;overflow:hidden}
+  .meter i{display:block;height:100%;width:82%;border-radius:4px;background:linear-gradient(90deg,#007acc,#4cc2ff)}
+  .win .foot{display:flex;justify-content:space-between;padding:12px;font-size:11.5px;color:var(--tx3)}
+  /* 区块通用 */
+  section{padding:64px 0}
+  .sec-head{text-align:center;margin-bottom:42px}
+  .sec-head .k{display:inline-block;font-size:12px;font-weight:700;letter-spacing:2px;color:var(--acc2);text-transform:uppercase;margin-bottom:10px}
+  .sec-head h2{font-size:30px;font-weight:800;letter-spacing:-.3px}
+  .sec-head p{color:var(--tx2);font-size:14.5px;margin-top:10px}
+  .cards{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--rad);padding:24px;transition:.22s;position:relative;overflow:hidden}
+  .card:hover{transform:translateY(-4px);border-color:var(--line2);box-shadow:var(--shadow)}
+  .card .ic{width:44px;height:44px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;background:linear-gradient(135deg,rgba(0,122,204,.18),rgba(0,122,204,.06));border:1px solid rgba(0,122,204,.3)}
+  .card .ic svg{width:22px;height:22px;stroke:var(--acc2)}
+  .card h3{font-size:16.5px;font-weight:700;margin-bottom:8px}
+  .card p{color:var(--tx2);font-size:13px}
+  .card .tag{position:absolute;top:18px;right:18px;font-size:10.5px;font-weight:600;padding:3px 9px;border-radius:999px}
+  .tag.real{color:var(--grn);background:rgba(53,194,122,.12);border:1px solid rgba(53,194,122,.3)}
+  .tag.demo{color:var(--amb);background:rgba(240,166,60,.1);border:1px solid rgba(240,166,60,.28)}
+  /* 功能矩阵 */
+  .matrix{background:var(--bg2);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+  .m-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+  .m-item{display:flex;align-items:center;gap:9px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 13px;font-size:12.8px;color:var(--tx2);transition:.15s}
+  .m-item:hover{color:var(--tx);border-color:var(--line2)}
+  .m-item svg{width:15px;height:15px;stroke:var(--acc2);flex:none}
+  /* 下载 */
+  .dl{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+  .dl-card{background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line2);border-radius:var(--rad);padding:28px;text-align:center;transition:.22s;position:relative}
+  .dl-card:hover{transform:translateY(-4px);box-shadow:var(--shadow);border-color:var(--acc2)}
+  .dl-card .big{font-size:15.5px;font-weight:700;margin:14px 0 6px}
+  .dl-card .d{font-size:12.5px;color:var(--tx2);min-height:38px}
+  .dl-card .sz{font-size:11.5px;color:var(--tx3);margin:10px 0 18px}
+  .dl-card .btn{width:100%}
+  .dl-card .soon{position:absolute;top:16px;right:16px;font-size:10.5px;color:var(--amb);border:1px solid rgba(240,166,60,.35);background:rgba(240,166,60,.1);padding:2px 8px;border-radius:999px}
+  .backup{display:flex;align-items:center;gap:18px;background:linear-gradient(135deg,rgba(0,122,204,.10),rgba(0,122,204,.03));border:1px solid rgba(76,194,255,.28);border-radius:var(--rad);padding:20px 26px;margin-top:22px;flex-wrap:wrap}
+  .backup-ic{width:46px;height:46px;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(76,194,255,.12);border-radius:12px}
+  .backup-ic svg{width:24px;height:24px}
+  .backup-body{flex:1;min-width:240px}
+  .backup-title{font-size:15px;font-weight:700;margin-bottom:3px}
+  .backup-desc{font-size:12.5px;color:var(--tx2)}
+  .backup-btn{flex:none}
+  .free-note{display:flex;align-items:center;justify-content:center;gap:10px;margin-top:26px;color:var(--tx3);font-size:13px;flex-wrap:wrap}
+  /* 开源 */
+  .oss{background:radial-gradient(800px 400px at 50% 0%,#14273a 0%,transparent 60%)}
+  .oss-box{display:flex;gap:26px;align-items:center;background:var(--card);border:1px solid var(--line2);border-radius:var(--rad);padding:34px;flex-wrap:wrap}
+  .oss-box .grow{flex:1;min-width:280px}
+  .oss-box h3{font-size:20px;font-weight:800;margin-bottom:8px}
+  .oss-box p{color:var(--tx2);font-size:13.5px}
+  .oss-badges{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+  .oss-badges span{font-size:12px;border:1px solid var(--line2);color:var(--tx2);padding:5px 12px;border-radius:999px}
+  .oss-badges span b{color:var(--grn)}
+  .code{background:#0b0e13;border:1px solid var(--line);border-radius:12px;padding:18px 20px;font-family:Consolas,"JetBrains Mono",monospace;font-size:12.5px;color:#a9c7e8;min-width:300px;flex:1}
+  .code .c{color:#5a6b85}.code .k{color:#7fd0ff}
+  /* 页脚 */
+  footer{border-top:1px solid var(--line);padding:34px 0;color:var(--tx3);font-size:12.5px}
+  footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap}
+  footer a{color:var(--tx2);text-decoration:none}
+  footer a:hover{color:var(--acc2)}
+  @media(max-width:980px){
+    .hero .grid{grid-template-columns:1fr}
+    .cards,.dl{grid-template-columns:repeat(2,1fr)}
+    .m-grid{grid-template-columns:repeat(3,1fr)}
+    .navlinks{display:none}
+  }
+  @media(max-width:640px){
+    .hero h1{font-size:32px}
+    .cards,.dl,.m-grid{grid-template-columns:1fr}
+    .hero{padding:56px 0 40px}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap nav">
+    <div class="brand">
+      <svg viewBox="0 0 24 24"><rect width="24" height="24" rx="6" fill="#007acc"/><path d="M12 3.5 5 6.2v5.1c0 4.3 2.9 7.4 7 9.2 4.1-1.8 7-4.9 7-9.2V6.2L12 3.5z" fill="white" opacity=".92"/><path d="M9.2 12.1l2 2 3.6-3.9" stroke="#007acc" stroke-width="1.8" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>DEPK Security<small>ASSISTANT</small></span>
+    </div>
+    <nav class="navlinks">
+      <a href="#features">功能</a>
+      <a href="#download">下载</a>
+      <a href="#open">开源</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <a class="gh" href="https://github.com/leiting2327/DEPKSecurityAssistant" target="_blank" rel="noopener">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+      GitHub 开源
+    </a>
+  </div>
+</header>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="wrap grid">
+    <div>
+      <span class="badge">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>
+        永久免费 · MIT 开源 · 本地引擎真实可用
+      </span>
+      <h1>让每一台 Windows<br>都有<em>专业级</em>安全防护</h1>
+      <p class="sub">DEPK Security Assistant 是面向个人与组织的终端安全助手。Win11 Fluent 深色界面、真实本地检测引擎、动态沙盒、Geek 风格卸载工具与开机抢先启动，无需云端即可工作。</p>
+      <div class="cta">
+        <a class="btn primary" href="#download">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+          免费下载
+        </a>
+        <a class="btn ghost" href="https://github.com/leiting2327/DEPKSecurityAssistant" target="_blank" rel="noopener">查看源代码</a>
+      </div>
+      <div class="meta">
+        <span>版本 <b>3.4.210</b></span>
+        <span>平台 <b>Windows 10 / 11 x64</b></span>
+        <span>许可 <b>MIT · 永久免费</b></span>
+      </div>
+    </div>
+    <div class="win">
+      <div class="bar"><i></i><i></i><i></i><span>DEPK Security Assistant · 安全中心</span></div>
+      <div class="body">
+        <div class="row"><span class="l"><span class="dot" style="background:#35c27a"></span>实时防护</span><span class="g">已启用</span></div>
+        <div class="row"><span class="l"><span class="dot" style="background:#4cc2ff"></span>本机引擎</span><span class="g">SHA-256 · 熵值 · 特征</span></div>
+        <div class="row"><span class="l"><span class="dot" style="background:#35c27a"></span>动态沙盒</span><span class="g">5-15 秒行为采集</span></div>
+        <div class="row"><span class="l"><span class="dot" style="background:#f0a63c"></span>卸载工具</span><span class="g">残留清理 3 项</span></div>
+        <div class="row"><span class="l"><span class="dot" style="background:#35c27a"></span>开机抢先启动</span><span class="g">Priority 4</span></div>
+        <div class="row"><span class="l"><span class="dot" style="background:#35c27a"></span>隔离区</span><span class="g">0 个威胁</span></div>
+      </div>
+      <div class="meter"><i></i></div>
+      <div class="foot"><span>防护评分 96</span><span>威胁情报已更新</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- FEATURES -->
+<section id="features">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="k">Core Features</span>
+      <h2>核心能力</h2>
+      <p>真实可用，不是演示</p>
+    </div>
+    <div class="cards">
+      <div class="card"><span class="tag real">真实</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3M11 8v6M8 11h6"/></svg></div>
+        <h3>真实本机扫描</h3><p>递归读取真实文件，SHA-256 指纹、熵值分析、PE/脚本/宏/勒索/挖矿特征检测，命中自动隔离。内置 EICAR 测试文件可验证。</p></div>
+      <div class="card"><span class="tag real">真实</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 4v16M15 4v16M4 9h16M4 15h16"/></svg></div>
+        <h3>动态沙盒</h3><p>受限环境真实运行样本 5-15 秒，采集进程树、网络外联、文件写入行为，超时强杀并清理，观察恶意行为而不影响系统。</p></div>
+      <div class="card"><span class="tag real">真实</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+        <h3>Geek 风格卸载工具</h3><p>真实读取已安装软件，一键卸载、强制删除、注册表与文件系统残留扫描清理、定位安装目录，彻底清除软件痕迹。</p></div>
+      <div class="card"><span class="tag real">真实</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2v20M17 6H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></div>
+        <h3>开机抢先启动</h3><p>登录时以高优先级（Priority 4）零延迟启动，计划任务 + Run 键双保险，让防护尽可能早于威胁发作。</p></div>
+      <div class="card"><span class="tag real">真实</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 2 4 5v6c0 5 3.4 8.6 8 11 4.6-2.4 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg></div>
+        <h3>加密隔离区</h3><p>威胁文件移入隔离目录并记录元数据，支持恢复 / 删除 / 清空。隔离数据在卸载时保留，避免误删。</p></div>
+      <div class="card"><span class="tag real">真实</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg></div>
+        <h3>本机管理</h3><p>进程管理、启动项、网络连接、系统信息、U 盘识别、软件清单、实时文件监控（下载/桌面/文档目录）。</p></div>
+      <div class="card"><span class="tag demo">界面</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></div>
+        <h3>集中管理控制台</h3><p>统一策略下发、跨终端管理、资产清点、仪表盘、报表导出（CSV/JSON），多终端安全态势一屏掌握。</p></div>
+      <div class="card"><span class="tag demo">界面</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="3.5"/></svg></div>
+        <h3>EDR / XDR 安全运营</h3><p>攻击链还原、事件时间线、根因分析、威胁狩猎、自动遏制、MITRE ATT&CK 映射，全流程安全运营视图。</p></div>
+      <div class="card"><span class="tag real">真实</span>
+        <div class="ic"><svg viewBox="0 0 24 24" fill="none" stroke-width="2"><path d="M9 12h6M9 8h6M9 16h4"/><rect x="4" y="3" width="16" height="18" rx="2.5"/><path d="m8 21-1 2M16 21l1 2"/></svg></div>
+        <h3>合规与审计</h3><p>等保合规、日志 / 操作 / 管理员审计、告警通知、报表生成、SIEM/SOAR 集成、Syslog 转发、REST API。</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- MATRIX -->
+<section class="matrix">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="k">Protection Matrix</span>
+      <h2>完整防护矩阵</h2>
+      <p>从单机扫描到企业级 EDR，200+ 安全能力一应俱全</p>
+    </div>
+    <div class="m-grid">
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>病毒防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>恶意软件防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>勒索软件防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>无文件攻击防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>内存攻击防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>漏洞利用防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>AI/机器学习检测</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>行为分析</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>云查杀</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>实时扫描</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>定时扫描</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>手动扫描</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>离线扫描</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>U盘扫描</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Web威胁防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>URL过滤</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>DNS过滤</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>邮件威胁防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>反钓鱼</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>反垃圾邮件</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>网络入侵防御</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>主机入侵防御</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>防火墙管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>应用控制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>设备控制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>外设管控</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>打印管控</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>截屏管控</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>数据防泄漏</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>敏感数据识别</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>数据分类分级</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>加密管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>漏洞扫描</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>补丁管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>软件更新管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>EDR端点检测与响应</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>XDR扩展检测与响应</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>MDR托管检测与响应</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>威胁狩猎</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>沙箱分析</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>威胁情报</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>攻击链还原</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>事件时间线</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>根因分析</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>自动遏制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>终端隔离</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>进程终止</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>文件隔离</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>隔离区管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>攻击回滚</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>脚本控制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>PowerShell防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>宏病毒防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>浏览器保护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>身份威胁检测</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>零信任集成</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>云工作负载防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>服务器防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>容器防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>VDI防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>移动端防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>离线终端防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>合规检查</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>等保合规</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>日志审计</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>操作审计</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>管理员审计</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>告警通知</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>报表生成</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>SIEM集成</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>SOAR集成</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Syslog转发</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>REST API</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>AD/LDAP防护集成</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>SSO单点登录</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>多因素认证</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>角色权限管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>多租户管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>分级管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>组策略管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>带宽控制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>更新代理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>缓存更新</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>远程部署自我保护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>远程卸载</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>远程锁定</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>远程擦除</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>BYOD支持</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>MITRE ATT&CK映射</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>遥测数据收集</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>取证调查</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>仪表盘</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>策略模板</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>白名单/黑名单</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>排除项管理</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>计划任务</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>终端定位</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>硬件变更监控</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>软件清单</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>网络准入控制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>安全基线检查</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>配置合规</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>应用白名单</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>驱动加载控制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>内核篡改防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>防卸载</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>APT防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>僵尸网络防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>挖矿防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>间谍软件防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>Rootkit防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>引导区病毒防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>勒索解密</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>备份恢复</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>文件版本恢复</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>快照恢复</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>系统恢复</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>事件响应</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>用户行为分析</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>横向移动检测</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>凭证窃取防护</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>暴力破解检测</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>异常登录检测</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>C2通信阻断</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>恶意IP阻断</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>端口控制</div>
+      <div class="m-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg>协议控制</div>
+        </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section id="download">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="k">Download</span>
+      <h2>免费下载</h2>
+      <p>永久免费 · 无广告 · 无功能阉割</p>
+    </div>
+    <div class="dl">
+      <div class="dl-card">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#4cc2ff" stroke-width="1.8"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M8 3v18M16 3v18M3 8h18M3 16h18"/></svg>
+        <div class="big">安装向导版</div>
+        <div class="d">Win11 Fluent 安装向导，功能介绍 + 底部进度条，自动创建快捷方式，内置开机抢先启动</div>
+        <div class="sz">约 189 MB · Windows 10/11 x64</div>
+        <a class="btn primary" href="https://github.com/leiting2327/DEPKSecurityAssistant/releases/download/v3.4.210/DEPKSecurityAssistant-Setup-3.4.210.exe">下载 Setup 版</a>
+      </div>
+      <div class="dl-card">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#35c27a" stroke-width="1.8"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>
+        <div class="big">便携绿色版</div>
+        <div class="d">解压即用，免安装，U 盘可携带，不写注册表（除运行所需外）</div>
+        <div class="sz">约 115 MB · Windows 10/11 x64</div>
+        <a class="btn ghost" href="https://github.com/leiting2327/DEPKSecurityAssistant/releases/download/v3.4.210/DEPKSecurityAssistant-Portable.zip">下载便携版</a>
+      </div>
+      <div class="dl-card">
+                <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="#f0a63c" stroke-width="1.8"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M8 21h8M12 18v3"/></svg>
+        <div class="big">网页预览版</div>
+        <div class="d">浏览器直接打开即可体验全部界面与交互（本机真实数据需 Windows 版）</div>
+        <div class="sz">单 HTML 文件 · 所有平台</div>
+        <a class="btn ghost" href="#">在线预览</a>
+      </div>
+    </div>
+    <div class="backup">
+      <div class="backup-ic">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#4cc2ff" stroke-width="1.9"><path d="M4 7.5 12 3l8 4.5v9L12 21l-8-4.5v-9z"/><path d="M12 8.5v8M8.5 10.5l3.5 2 3.5-2"/></svg>
+      </div>
+      <div class="backup-body">
+        <div class="backup-title">备用下载通道 · 小飞机网盘</div>
+        <div class="backup-desc">下载不限速 · 一键转存无上限 · 永久有效。GitHub Release 不可用时优先走此通道。</div>
+      </div>
+      <a class="btn ghost backup-btn" href="https://share.feijipan.com/s/vf9wo48C" target="_blank" rel="noopener">打开备用通道</a>
+    </div>
+    <div class="free-note">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#35c27a" stroke-width="2.2"><path d="M12 2 4 5v6c0 5 3.4 8.6 8 11 4.6-2.4 8-6 8-11V5l-8-3z"/><path d="m9 12 2 2 4-4"/></svg>
+      <span>本软件依据 <b style="color:var(--grn)">MIT 许可证</b> 永久免费开源，个人与商业使用均免费，无付费墙、无授权到期。</span>
+    </div>
+  </div>
+</section>
+
+<!-- OPEN SOURCE -->
+<section class="oss" id="open">
+  <div class="wrap">
+    <div class="sec-head">
+      <span class="k">Open Source</span>
+      <h2>完全开源</h2>
+      <p>代码透明，永久免费，欢迎 Star 与贡献</p>
+    </div>
+    <div class="oss-box">
+      <div class="grow">
+        <h3>DEPKSecurityAssistant</h3>
+        <p>完整源码（前端 UI + Electron 壳层 + 本地检测引擎 + 安装向导 + 卸载工具）已在 GitHub 公开，包含全部构建脚本与打包方案。</p>
+        <div class="oss-badges">
+          <span>许可 <b>MIT</b></span>
+          <span>平台 <b>Windows x64</b></span>
+          <span>技术 <b>Electron · 原生 JS</b></span>
+          <span>版本 <b>v3.4.210</b></span>
+        </div>
+        <div class="cta" style="margin-top:22px">
+          <a class="btn primary" href="https://github.com/leiting2327/DEPKSecurityAssistant" target="_blank" rel="noopener">
+            <svg width="17" height="17" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27s1.36.09 2 .27c1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub 仓库
+          </a>
+        </div>
+      </div>
+      <div class="code"><span class="c"># 克隆 / 构建 / 运行</span><br><span class="k">git clone</span> https://github.com/leiting2327/DEPKSecurityAssistant.git<br><span class="k">cd</span> electron &amp;&amp; npm install<br><span class="k">npm start</span><br><br><span class="c"># 打包 Windows x64</span><br><span class="k">npx</span> electron-packager . --platform=win32 --arch=x64 --out=dist --overwrite --asar</div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section id="faq" style="padding-top:0">
+  <div class="wrap">
+    <div class="sec-head"><span class="k">FAQ</span><h2>常见问题</h2></div>
+    <div class="cards" style="grid-template-columns:1fr 1fr">
+      <div class="card"><h3>真的永久免费吗？</h3><p>是。源码以 MIT 许可发布，永久免费使用、修改、分发（含商业），无付费墙、无功能阉割、无授权到期。</p></div>
+      <div class="card"><h3>云端类功能为何标注"界面"？</h3><p>云查杀、威胁情报源、跨终端策略下发依赖 DEPK 服务端，本版本以界面演示呈现并已标注；本地扫描、隔离、沙盒、卸载工具均为真实功能，断网可用。</p></div>
+      <div class="card"><h3>SmartScreen 提示怎么办？</h3><p>当前为未签名评估版，首次运行时点「更多信息 → 仍要运行」。若需消除提示，可购买代码签名证书签名（见仓库说明）。</p></div>
+      <div class="card"><h3>如何验证杀毒能力？</h3><p>软件内置 EICAR 标准测试文件，创建即可验证扫描、检测与隔离全流程，不会伤害系统。</p></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>© 2026 DEPK Security · <a href="https://github.com/leiting2327/DEPKSecurityAssistant" target="_blank" rel="noopener">GitHub</a> · <a href="#top">返回顶部</a></span>
+    <span>DEPK Security Assistant v3.4.210 · 永久免费 · MIT License</span>
+  </div>
+</footer>
+
+</body>
+</html>
