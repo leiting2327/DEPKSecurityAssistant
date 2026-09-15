@@ -44,13 +44,13 @@ MITRE ATT&CK 映射、遥测数据、取证调查、仪表盘、策略模板、�
 ## 安装
 
 **方式一：安装向导（推荐）**
-下载 `DEPKSecurityAssistant-Setup-*.exe`，双击运行：
+下载 [`DEPKSecurityAssistant-Setup-3.4.210.exe`](https://github.com/leiting2327/DEPKSecurityAssistant/releases/download/v3.4.210/DEPKSecurityAssistant-Setup-3.4.210.exe)（GitHub Release 直链），双击运行：
 - Win11 Fluent 风格安装向导，功能介绍 + 底部进度条
 - 默认勾选「开机抢先启动」：登录时以高优先级（Priority 4）零延迟启动，早于绝大多数自启动程序，计划任务 + Run 键双保险
 - 安装后自动创建桌面 / 开始菜单快捷方式，控制面板可随时卸载（保留隔离区数据）
 
 **方式二：便携绿色版**
-解压 `DEPKSecurityAssistant-win32-x64`，直接运行 `DEPKSecurityAssistant.exe` 即可，免安装。
+下载 [`DEPKSecurityAssistant-Portable.zip`](https://github.com/leiting2327/DEPKSecurityAssistant/releases/download/v3.4.210/DEPKSecurityAssistant-Portable.zip)，解压后直接运行 `DEPKSecurityAssistant.exe` 即可，免安装。
 
 > 未签名评估版：首次运行 SmartScreen 提示时点「更多信息 → 仍要运行」。
 
