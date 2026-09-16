@@ -355,6 +355,8 @@ if (SETUP) {
         return { ok: false, err: '安装位置与安装包所在目录相同，请选择其他文件夹（如 D:\\DEPKSecurityAssistant）' };
       }
       await fsp.mkdir(target, { recursive: true });
+      // 先关闭已运行的旧版本（避免文件被占用导致覆盖失败），但保留本次安装向导自身
+      await psExec(`Get-Process DEPKSecurityAssistant -ErrorAction SilentlyContinue | Where-Object { $_.Id -ne ${process.pid} } | Stop-Process -Force -ErrorAction SilentlyContinue`);
       const total = await countFiles(src);
       let done = 0;
       await copyTree(src, target, (f) => {
@@ -375,7 +377,7 @@ if (SETUP) {
       await createShortcut(path.join(os.homedir(), 'Desktop', 'DEPK Security Assistant.lnk'), exe, '', 'DEPK Security Assistant', exe);
       // 注册表（卸载项 + Run 键）
       const unreg = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\DEPKSecurityAssistant';
-      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.212'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
+      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.213'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
       // 开机抢先启动：计划任务（登录触发 + 高优先级） + Run 键双保险
       if (autostart) {
         await psExec(`$a=New-ScheduledTaskAction -Execute '${exe}' -Argument '--app'; $t=New-ScheduledTaskTrigger -AtLogOn; $s=New-ScheduledTaskSettingsSet -Priority 4 -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries; Register-ScheduledTask -TaskName 'DEPKSecurityGuard' -Action $a -Trigger $t -Settings $s -Force | Out-Null`);
