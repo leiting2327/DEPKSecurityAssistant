@@ -159,19 +159,23 @@ $('#featList').innerHTML = FEATS.map(f=>`<div class="fcard"><div class="fi">${I[
 function renderWelcome(){
   $('#stepBody').innerHTML = `
     <div class="st-title fade-in"><span class="dot"></span>安装 DEPK Security Assistant</div>
-    <div class="st-sub">终端安全助手 · 3.4.210<br>左侧为本机已内置的全部安全能力，全部本地引擎驱动，无需云端即可工作。</div>
+    <div class="st-sub">终端安全助手 · 3.4.211<br>左侧为本机已内置的全部安全能力，全部本地引擎驱动，无需云端即可工作。</div>
     <div class="opt fade-in" style="margin-top:26px">
       <label><input type="checkbox" id="optAuto"><span class="chk"></span><span><div class="ot">开机抢先启动（推荐）</div>
       <div class="od">登录时立即以高优先级（Priority 4）启动，零延迟，先于绝大多数自启动程序；与计划任务双保险，让防护尽可能早于威胁发作。</div></span></label>
     </div>
     <div class="opt fade-in">
       <div class="ot" style="font-size:13.5px">安装位置</div>
-      <div class="pathrow"><input id="instPath" spellcheck="false"><button class="btn-ghost" id="btnReset">默认</button></div>
-      <div class="hint">无需管理员权限，安装到当前用户目录。卸载时保留隔离区数据。</div>
+      <div class="pathrow"><input id="instPath" spellcheck="false"><button class="btn-ghost" id="btnBrowse">浏览…</button><button class="btn-ghost" id="btnReset">默认</button></div>
+      <div class="hint">可安装到任意位置（无需管理员权限）。卸载时保留隔离区数据。</div>
     </div>
     <div class="badge"><svg viewBox="0 0 24 24" width="13" height="13" fill="currentColor"><path d="M12 2 4 5v6c0 5.2 3.4 9.4 8 11 4.6-1.6 8-5.8 8-11V5l-8-3z"/></svg>未签名评估版 · SmartScreen 提示点「仍要运行」即可</div>`;
   $('#optAuto').checked = autostart;
   $('#instPath').value = targetDir;
+  $('#btnBrowse').onclick = () => {
+    if (!REAL) { alert('浏览器模拟：请输入路径到上方输入框'); return; }
+    window.depk.pickDir().then(p => { if (p) { $('#instPath').value = p; targetDir = p; } });
+  };
   $('#btnReset').onclick = ()=> $('#instPath').value = DEFAULT_DIR;
   $('#stepFoot').innerHTML = `<button class="btn btn-primary" id="btnInstall">立即安装</button>`;
   $('#btnInstall').onclick = () => {
@@ -211,9 +215,8 @@ function renderInstalled(){
     <div class="st-sub">检测到 DEPK Security Assistant 已安装于：<br><b style="color:var(--acc);font-size:12.5px;font-family:Consolas,monospace">${REAL?status.dir:'（模拟）'}</b></div>
     <div class="installed-note fade-in">${I.shield} 您可以将本程序移动到其他位置再双击，即可重新进入安装向导。</div>`;
   $('#stepFoot').innerHTML = `<button class="btn btn-secondary" id="btnRepair">重新安装</button><button class="btn btn-danger" id="btnUninstall">卸载</button>`;
-  $('#btnRepair').onclick = ()=> { targetDir = DEFAULT_DIR; startInstall(); };
-  $('#btnUninstall').onclick = ()=> { if(!confirm('确认卸载 DEPK Security Assistant？将删除程序文件（保留隔离区数据）。')) return; startUninstall(); };
-}
+  $('#btnRepair').onclick = ()=> { targetDir = status.dir || DEFAULT_DIR; startInstall(); };
+  $('#btnUninstall').onclick = ()=> { if(!confirm('确认卸载 DEPK Security Assistant？将删除程序文件（保留隔离区数据）。')) return; startUninstall(); };}
 function renderUninstalling(){ setPct(0); $('#stepBody').innerHTML = `
   <div class="inst-area fade-in"><div class="ring"></div><div class="pct" id="pctNum">0%</div><div class="inst-file" id="instFile">正在卸载…</div></div>`;
   $('#stepFoot').innerHTML = ''; }
@@ -240,7 +243,7 @@ function startUninstall(){
   renderUninstalling();
   if(!REAL){ let p=0; const iv=setInterval(()=>{ p=Math.min(100,p+15); setPct(p); if(p>=100){clearInterval(iv);renderUninstalled();} },90); return; }
   window.depk.onProgress(d=>{ setPct(d.done/Math.max(d.total,1)*100); const f=$('#instFile'); if(f) f.textContent='正在删除 '+d.file; });
-  window.depk.uninstall().then(r=>{ if(r && r.ok) renderUninstalled(); else { $('#instFile').textContent='卸载失败：'+(r&&r.err||'未知错误'); } });
+  window.depk.uninstall(status.dir).then(r=>{ if(r && r.ok) renderUninstalled(); else { $('#instFile').textContent='卸载失败：'+(r&&r.err||'未知错误'); } });
 }
 
 /* ---- 窗口控制 ---- */

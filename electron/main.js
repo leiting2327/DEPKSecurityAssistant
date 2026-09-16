@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -18,6 +18,7 @@ function isSetupMode() {
   if (process.argv.includes('--setup')) return true;
   const exeDir = path.dirname(process.execPath);
   if (fs.existsSync(path.join(exeDir, '.portable'))) return false;
+  if (fs.existsSync(path.join(exeDir, '.depkinstalled'))) return false; // 已安装位置 → 直接主程序
   return exeDir.toLowerCase() !== INSTALL_DIR.toLowerCase();
 }
 
@@ -330,20 +331,37 @@ function createShortcut(lnkPath, target, args, desc, icon) {
 if (SETUP) {
   ipcMain.handle('setup:getStatus', async () => {
     const exeDir = path.dirname(process.execPath);
-    const installed = exeDir.toLowerCase() === INSTALL_DIR.toLowerCase();
-    return { installed, dir: INSTALL_DIR, exePath: path.join(INSTALL_DIR, INSTALLED_EXE) };
+    const here = fs.existsSync(path.join(exeDir, '.depkinstalled'));
+    const dflt = fs.existsSync(path.join(INSTALL_DIR, '.depkinstalled'));
+    const dir = here ? exeDir : (dflt ? INSTALL_DIR : '');
+    return { installed: !!dir, dir, exePath: dir ? path.join(dir, INSTALLED_EXE) : path.join(INSTALL_DIR, INSTALLED_EXE) };
+  });
+
+  ipcMain.handle('setup:pickDir', async () => {
+    const r = await dialog.showOpenDialog(win || undefined, {
+      title: '选择 DEPK Security Assistant 安装位置',
+      buttonLabel: '选择此文件夹',
+      properties: ['openDirectory', 'createDirectory']
+    });
+    return r.canceled ? null : r.filePaths[0];
   });
 
   ipcMain.handle('setup:install', async (e, { dir, autostart }) => {
     try {
       const target = String(dir || INSTALL_DIR);
       const src = path.dirname(process.execPath);
+      // 防护：安装目录不能等于安装包所在目录（否则复制到自身，Windows 会报 ENOENT）
+      if (path.resolve(target).toLowerCase() === path.resolve(src).toLowerCase()) {
+        return { ok: false, err: '安装位置与安装包所在目录相同，请选择其他文件夹（如 D:\\DEPKSecurityAssistant）' };
+      }
       await fsp.mkdir(target, { recursive: true });
       const total = await countFiles(src);
       let done = 0;
       await copyTree(src, target, (f) => {
         done++; if (done % 3 === 0 || done === total) sendSetupProgress(done, total, path.basename(f));
       });
+      // 已安装标记：安装到任意路径都能识别为"已安装位置"，下次双击直接进主程序
+      await fsp.writeFile(path.join(target, '.depkinstalled'), 'DEPK Security Assistant installed\n', 'utf8');
       // 安装后的 exe 使用固定名称（Setup 文件名可任意）
       const exe = path.join(target, INSTALLED_EXE);
       if (path.basename(process.execPath).toLowerCase() !== INSTALLED_EXE.toLowerCase()) {
@@ -357,7 +375,7 @@ if (SETUP) {
       await createShortcut(path.join(os.homedir(), 'Desktop', 'DEPK Security Assistant.lnk'), exe, '', 'DEPK Security Assistant', exe);
       // 注册表（卸载项 + Run 键）
       const unreg = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\DEPKSecurityAssistant';
-      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.210'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
+      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.211'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
       // 开机抢先启动：计划任务（登录触发 + 高优先级） + Run 键双保险
       if (autostart) {
         await psExec(`$a=New-ScheduledTaskAction -Execute '${exe}' -Argument '--app'; $t=New-ScheduledTaskTrigger -AtLogOn; $s=New-ScheduledTaskSettingsSet -Priority 4 -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries; Register-ScheduledTask -TaskName 'DEPKSecurityGuard' -Action $a -Trigger $t -Settings $s -Force | Out-Null`);
@@ -374,8 +392,9 @@ if (SETUP) {
     return { ok: true };
   });
 
-  ipcMain.handle('setup:uninstall', async () => {
+  ipcMain.handle('setup:uninstall', async (e, { dir } = {}) => {
     try {
+      const target = String(dir || INSTALL_DIR);
       await psExec(`taskkill /F /IM DEPKSecurityAssistant.exe 2>$null | Out-Null`);
       await psExec(`Remove-Item -LiteralPath '${path.join(os.homedir(), 'Desktop', 'DEPK Security Assistant.lnk')}' -Force -ErrorAction SilentlyContinue`);
       await psExec(`Remove-Item -LiteralPath '${path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'DEPK Security Assistant.lnk')}' -Force -ErrorAction SilentlyContinue`);
@@ -383,7 +402,7 @@ if (SETUP) {
       await psExec(`Remove-ItemProperty 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' DEPKSecurityAssistant -ErrorAction SilentlyContinue`);
       await psExec(`Unregister-ScheduledTask -TaskName 'DEPKSecurityGuard' -Confirm:$false -ErrorAction SilentlyContinue`);
       // 删除安装目录（保留用户隔离区数据）
-      const total = await countFiles(INSTALL_DIR); let done = 0;
+      const total = await countFiles(target); let done = 0;
       const walk = async (dir) => {
         for (const e of await fsp.readdir(dir, { withFileTypes: true })) {
           const p = path.join(dir, e.name);
@@ -393,9 +412,9 @@ if (SETUP) {
         }
         try { await fsp.rmdir(dir); } catch (err) {}
       };
-      await walk(INSTALL_DIR);
+      await walk(target);
       // 运行中的 exe 可能被占用：交给脱离进程延迟清理
-      execFile('cmd.exe', ['/c', `timeout /t 3 /nobreak >nul & rmdir /s /q "${INSTALL_DIR}" & schtasks /delete /tn DEPKSecurityGuard /f >nul 2>&1`], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
+      execFile('cmd.exe', ['/c', `timeout /t 3 /nobreak >nul & rmdir /s /q "${target}" & schtasks /delete /tn DEPKSecurityGuard /f >nul 2>&1`], { detached: true, stdio: 'ignore', windowsHide: true }).unref();
       sendSetupProgress(total, total, '完成');
       return { ok: true };
     } catch (err) { return { ok: false, err: String(err.message || err) }; }
