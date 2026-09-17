@@ -23,7 +23,7 @@ const errorAlreadyExists = 183
 var mutexHandle uintptr
 
 func acquireMutex() bool {
-	name, _ := syscall.UTF16PtrFromString("Local\\DEPKSecurityAssistant_Setup_216")
+	name, _ := syscall.UTF16PtrFromString("Local\\DEPKSecurityAssistant_Setup_217")
 	h, _, _ := pCreateMutexW.Call(0, 0, uintptr(unsafe.Pointer(name)))
 	if h == 0 {
 		return true

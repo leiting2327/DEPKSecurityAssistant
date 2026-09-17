@@ -146,7 +146,12 @@ const FEATS = [
   {i:'bolt',t:'实时监控',d:'fs.watch 实时监控下载/桌面/文档，文件变更即时记录上报'},
   {i:'lock',t:'加密隔离区',d:'威胁文件移入隔离目录并记录元数据，可随时恢复或删除'},
   {i:'shield',t:'摄像头/麦克风防护',d:'系统级拒绝偷拍窃听：对方只能看到「您已违法违规操作」警示画面、只能听到循环警示语音'},
-  {i:'report',t:'审计与报表',d:'操作审计、扫描历史、隔离清单，一键导出 CSV/JSON'}
+  {i:'report',t:'审计与报表',d:'操作审计、扫描历史、隔离清单，一键导出 CSV/JSON'},
+  {i:'zap',t:'一键优化',d:'真实结束非保留用户进程 + 清理临时文件/回收站，可自选不结束的进程白名单'},
+  {i:'wifi',t:'断网紧急开关',d:'发现异常外联一键禁用全部活动网卡物理断网，随时一键恢复'},
+  {i:'usb',t:'U盘自动扫描',d:'插入即检测（含 autorun.inf 风险），自动执行真实扫描'},
+  {i:'globe',t:'浏览器主页保护',d:'真实读取 Edge/Chrome/Firefox 主页与搜索引擎，一键修复为 Bing，防主页劫持'},
+  {i:'clock',t:'更新中心（Gitee）',d:'每小时后台自动检查 Gitee 发行版更新并提醒，国内高速下载'}
 ];
 const $=s=>document.querySelector(s);
 const REAL = !!(window.depk && window.depk.isElectron);
@@ -160,7 +165,7 @@ $('#featList').innerHTML = FEATS.map(f=>`<div class="fcard"><div class="fi">${I[
 function renderWelcome(){
   $('#stepBody').innerHTML = `
     <div class="st-title fade-in"><span class="dot"></span>安装 DEPK Security Assistant</div>
-    <div class="st-sub">终端安全助手 · 3.4.216<br>左侧为本机已内置的全部安全能力，全部本地引擎驱动，无需云端即可工作。</div>
+    <div class="st-sub">终端安全助手 · 3.4.217<br>左侧为本机已内置的全部安全能力，全部本地引擎驱动，无需云端即可工作。</div>
     <div class="opt fade-in" style="margin-top:26px">
       <label><input type="checkbox" id="optAuto"><span class="chk"></span><span><div class="ot">开机抢先启动（推荐）</div>
       <div class="od">登录时立即以高优先级（Priority 4）启动，零延迟，先于绝大多数自启动程序；与计划任务双保险，让防护尽可能早于威胁发作。</div></span></label>

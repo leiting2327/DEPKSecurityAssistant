@@ -543,12 +543,14 @@ const store={theme:localStorage.getItem('ds_theme')||'dark',navCollapsed:localSt
   updateVer:'2026.09.15.01',engineVer:'1.0.8842',sigCount:2485136,
   scanHist:[],quarantine:[],policies:[],endpoints:[],alerts:[],audit:[],notifs:[],rules:[],iocs:[],vulns:[],sessions:[],exclusions:[],
   privacy:{cam:0,mic:0,camUsed:[],micUsed:[],camInUse:false,micInUse:false},
+  themeMode:'auto',keepProcs:[],disabledStartup:[],autoUsb:true,usbEvents:[],updateInfo:null,scanTargetPath:null,ctxOn:false,
   scanState:null,lastScan:null};
 const REAL=!!(window.depk&&window.depk.isElectron);
 const LS_KEY='ds_store_v1';
-function save(){try{localStorage.setItem(LS_KEY,JSON.stringify({scanHist:store.scanHist,quarantine:store.quarantine,policies:store.policies,alerts:store.alerts,audit:store.audit,notifs:store.notifs,rules:store.rules,iocs:store.iocs,vulns:store.vulns,sessions:store.sessions,exclusions:store.exclusions,realtime:store.realtime,cloud:store.cloud,ai:store.ai,heuristic:store.heuristic,firewall:store.firewall,webProt:store.webProt,mailProt:store.mailProt,ids:store.ids,selfProtect:store.selfProtect,privacy:store.privacy}));}catch(e){}}
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify({scanHist:store.scanHist,quarantine:store.quarantine,policies:store.policies,alerts:store.alerts,audit:store.audit,notifs:store.notifs,rules:store.rules,iocs:store.iocs,vulns:store.vulns,sessions:store.sessions,exclusions:store.exclusions,realtime:store.realtime,cloud:store.cloud,ai:store.ai,heuristic:store.heuristic,firewall:store.firewall,webProt:store.webProt,mailProt:store.mailProt,ids:store.ids,selfProtect:store.selfProtect,privacy:store.privacy,themeMode:store.themeMode,keepProcs:store.keepProcs,disabledStartup:store.disabledStartup,autoUsb:store.autoUsb,ctxOn:store.ctxOn}));}catch(e){}}
 function load(){try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(!d)return;Object.assign(store,d);}catch(e){}}
 function audit(action,detail,user='管理员'){store.audit.unshift({id:uid(),time:Date.now(),action,detail,user,ip:'192.168.1.10'});if(store.audit.length>300)store.audit.length=300;save();}
+function pushNotif(title,desc,c,icon){store.notifs.unshift({title,desc:desc||'',c:c||'accent',icon:icon||'bell',t:Date.now()});if(store.notifs.length>200)store.notifs.length=200;save();const b=$('#notifBadge');if(b)b.textContent=store.notifs.length;toast(title+(desc?'：'+desc:''),c==='red'?'warn':'info');}
 
 /* ================= SVG 图表库 ================= */
 function svgLine(sel,data,{h=150,color='var(--accent)',fill=true,labels=true,max=null,minW=null}={}){
@@ -584,6 +586,7 @@ const NAV=[
  {id:'network',l:'网络防护',i:'firewall'},
  {id:'device',l:'应用与设备',i:'apps'},
  {id:'privacy',l:'隐私防护',i:'eye'},
+ {id:'boost',l:'优化加速',i:'zap'},
  {id:'patching',l:'漏洞与补丁',i:'patch'},
  {id:'edr',l:'EDR 中心',i:'pulse'},
  {id:'local',l:'本机管理',i:'monitor'},
@@ -591,7 +594,7 @@ const NAV=[
  {id:'compliance',l:'合规与审计',i:'audit'},
  {id:'mgmt',l:'集中管理',i:'console'}
 ];
-const PAGE_TITLE={dashboard:'概览',protection:'病毒和威胁防护',network:'防火墙和网络保护',device:'应用与设备控制',privacy:'摄像头与麦克风防护',patching:'漏洞与补丁管理',edr:'端点检测与响应 (EDR)',local:'本机管理（真实数据）',threat:'威胁情报与沙箱',compliance:'合规、审计与报表',mgmt:'集中管理控制台',settings:'设置'};
+const PAGE_TITLE={dashboard:'概览',protection:'病毒和威胁防护',network:'防火墙和网络保护',device:'应用与设备控制',privacy:'摄像头与麦克风防护',boost:'优化加速',patching:'漏洞与补丁管理',edr:'端点检测与响应 (EDR)',local:'本机管理（真实数据）',threat:'威胁情报与沙箱',compliance:'合规、审计与报表',mgmt:'集中管理控制台',settings:'设置'};
 function go(page,tab){store.page=page;store.tab=tab||null;save();render();}
 function renderNav(){
   const n=$('#nav');
@@ -613,7 +616,7 @@ let activePageCb=null;
 function bindTabs(container,page){$$(container+' .tab[data-tab]').forEach(el=>el.onclick=()=>go(page,el.dataset.tab));}
 
 /* 主题 */
-function applyTheme(){document.documentElement.dataset.theme=store.theme;$('#themeIco').outerHTML=I[store.theme==='dark'?'scan':'zap'].replace('<svg','<svg id="themeIco"');}
+function applyTheme(){const dk=store.themeMode==='auto'?(!window.matchMedia||window.matchMedia('(prefers-color-scheme: dark)').matches):store.themeMode==='dark';store.theme=dk?'dark':'light';document.documentElement.dataset.theme=store.theme;$('#themeIco').outerHTML=I[store.theme==='dark'?'scan':'zap'].replace('<svg','<svg id="themeIco"');}
 </script>
 <script>
 /* ================= 演示数据 ================= */
@@ -1164,9 +1167,19 @@ function rNetFw(){
   <div class="grid-2 mt16">
     <div class="card"><div class="card-title">端口控制</div><div class="kv"><span class="k">高危端口策略</span><span class="v">135/139/445 入站 → 阻止（非域）</span></div><div class="kv"><span class="k">3389 远程桌面</span><span class="v">仅允许 10.10.2.0/24</span></div><div class="kv"><span class="k">动态端口</span><span class="v">49152-65535 出站审计</span></div></div>
     <div class="card"><div class="card-title">协议控制</div><div class="kv"><span class="k">SMBv1</span><span class="v" style="color:var(--red)">已禁用</span></div><div class="kv"><span class="k">RDP 网络级认证</span><span class="v" style="color:var(--green)">已启用</span></div><div class="kv"><span class="k">LLMNR / NetBIOS</span><span class="v" style="color:var(--green)">已禁用（防投毒）</span></div><div class="kv"><span class="k">IPv6 防火墙</span><span class="v">已启用</span></div></div>
+  </div>
+  <div class="card mt16" style="border-color:var(--red-soft)"><div class="card-title flex between"><span>${I.wifi} 断网紧急开关 <span class="sub">发现异常外联 / C2 时一键物理断网</span></span><span class="pill red">紧急</span></div>
+    <div class="flex" style="gap:10px;flex-wrap:wrap;margin-top:8px">
+      <button class="btn btn-danger" id="btnNetKill">${I.pause} 立即断网</button>
+      <button class="btn btn-secondary" id="btnNetRestore">${I.refresh} 恢复网络</button>
+      <span class="stat-chip" style="border-color:var(--border-2)" id="netKillState">${REAL?'已就绪（禁用全部活动网卡）':'浏览器预览：真实断网需 Windows 版'}</span>
+    </div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:10px">断网将禁用当前所有活动网卡，阻止一切外联；网络恢复后自动重新启用。管理员可随时在下方恢复。</div>
   </div>`;
   $('#tgFw').onclick=()=>{store.firewall=!store.firewall;$('#tgFw').classList.toggle('on',store.firewall);save();audit('防火墙','全局防火墙 '+(store.firewall?'开启':'关闭'));toast('防火墙已'+ (store.firewall?'开启':'关闭'),'ok');};
   $$('#netBody .toggle[data-rw]').forEach(t=>t.onclick=()=>{const r=store.rules.find(x=>x.id===t.dataset.rw);r.enabled=!r.enabled;t.classList.toggle('on',r.enabled);save();audit('防火墙规则',`${r.enabled?'启用':'停用'} ${r.name}`);});
+  $('#btnNetKill').onclick=async()=>{if(!REAL){toast('请安装 Windows 版使用真实断网','warn');return;}if(!confirm('确定立即断网？将禁用所有活动网卡，可随时恢复。'))return;const r=await window.depk.killSwitch();$('#netKillState').innerHTML='已断网：禁用 '+((r.disabled||[]).length)+' 个网卡（'+((r.disabled||[]).join('、')||'—')+'）';toast('已断网：'+((r.disabled||[]).length)+' 个网卡已禁用','warn');audit('断网开关','紧急断网，禁用 '+((r.disabled||[]).length)+' 个网卡');};
+  $('#btnNetRestore').onclick=async()=>{if(!REAL){toast('请安装 Windows 版使用真实恢复','warn');return;}const r=await window.depk.restoreNet();$('#netKillState').innerHTML='已恢复：'+((r.restored||[]).length)+' 个网卡已启用';toast('网络已恢复：'+((r.restored||[]).length)+' 个网卡已启用','ok');audit('断网开关','恢复网络，启用 '+((r.restored||[]).length)+' 个网卡');};
   $('#addRule').onclick=()=>modal(`<div class="flex col" style="gap:10px">
     <label style="font-size:12.5px;color:var(--text-3)">规则名称</label><input id="rName" placeholder="例如 阻止 某恶意端口">
     <div class="grid-2" style="gap:10px"><div><label style="font-size:12.5px;color:var(--text-3)">方向</label><select id="rDir"><option>入站</option><option>出站</option><option>双向</option></select></div>
@@ -1194,8 +1207,41 @@ function rNetWeb(){
   </div>
   <div class="card mt16"><div class="card-title">URL 过滤策略</div>
     <div class="flex" style="flex-wrap:wrap;gap:10px">${['恶意软件站点:阻止','钓鱼站点:阻止','赌博/成人:阻止','社交网络:允许','视频流媒体:允许','网盘下载:允许','软件下载:询问'].map(c=>{const[s,act]=c.split(':');return `<span class="stat-chip" style="border-color:var(--border-2)">${s} <span style="color:${act==='阻止'?'var(--red)':act==='询问'?'var(--amber)':'var(--green)'};font-weight:700">${act}</span></span>`;}).join('')}</div>
-    <button class="btn btn-secondary btn-sm mt12">${I.edit} 编辑分类策略</button></div>`;
+    <button class="btn btn-secondary btn-sm mt12" id="btnCtxWeb">${I.edit} 编辑分类策略</button></div>
+  <div class="card mt16"><div class="card-title flex between"><span>${I.globe} 浏览器主页保护 <span class="sub">检测主页篡改与搜索引擎劫持（真实读取浏览器配置）</span></span><button class="btn btn-secondary btn-sm" id="hpRefresh">${I.refresh} 重新检测</button></div>
+    <div id="hpBox">${locLoading()}</div>
+    <div style="font-size:11.5px;color:var(--text-3);margin-top:8px">推荐默认搜索引擎为 Bing；修复主页前会自动备份原配置（备份于安装目录 browser_backup）。修复需先退出浏览器。</div>
+  </div>`;
+  $('#btnCtxWeb').onclick=()=>toast('分类策略演示：可在企业控制台配置','info');
+  $('#hpRefresh').onclick=loadHomeProt;
   $$('#netBody .toggle[data-w]').forEach(t=>t.onclick=()=>{const k=t.dataset.w;store[k]=!store[k];t.classList.toggle('on',store[k]);save();audit('网络防护',`${k} ${store[k]?'开启':'关闭'}`);toast('Web 防护已'+(store[k]?'开启':'关闭'),'ok');});
+  loadHomeProt();
+}
+async function loadHomeProt(){
+  const box=$('#hpBox');if(!box)return;
+  if(!REAL||!window.depk.homeProt){box.innerHTML=`<div class="empty">${I.globe}<div>浏览器预览模式：安装 Windows 版后真实检测 Edge / Chrome / Firefox 主页与搜索引擎</div></div>`;return;}
+  const r=await window.depk.homeProt();
+  if(!r.ok||!r.data){box.innerHTML=`<div class="empty">检测失败：${esc(r.err||'未知')}</div>`;return;}
+  box.innerHTML=`<div class="table-wrap"><table class="tbl"><colgroup><col style="width:16%"><col style="width:30%"><col style="width:22%"><col style="width:14%"><col style="width:18%"></colgroup>
+  <thead><tr><th>浏览器</th><th>主页</th><th>默认搜索引擎</th><th>状态</th><th>操作</th></tr></thead>
+  <tbody>${r.data.map(b=>`<tr>
+    <td style="font-weight:600">${esc(b.name)}</td>
+    <td class="mono" style="font-size:10.5px">${b.exists?esc(b.homepage||'未设置'):'未安装'}</td>
+    <td style="font-size:12px">${b.engine?esc(b.engine):'—'}${b.engine&&!/bing/i.test(b.engine)?' <span class="pill amber">建议 Bing</span>':''}</td>
+    <td>${!b.exists?'<span class="pill gray">未安装</span>':b.risk.level==='high'?'<span class="pill red">疑似劫持</span>':b.risk.level==='med'?'<span class="pill amber">需注意</span>':'<span class="pill green">正常</span>'}</td>
+    <td>${b.exists?`<div class="flex" style="gap:6px">${b.risk.level!=='ok'?'<button class="btn btn-primary btn-sm" data-hpf="${b.id}">一键修复为 Bing</button>':''}<button class="btn btn-secondary btn-sm" data-hpo="${b.id}">打开设置</button></div>`:'—'}</td>
+  </tr>`).join('')}</tbody></table></div>`;
+  $$('#hpBox [data-hpf]').forEach(btn=>btn.onclick=async()=>{
+    if(!confirm('将把该浏览器主页修复为 Bing（https://www.bing.com/），原配置会先备份。继续？'))return;
+    const rr=await window.depk.homeFix(btn.dataset.hpf);
+    if(rr.ok){toast(rr.note||'已修复','ok');audit('主页保护',`修复 ${btn.dataset.hpf} 主页为 Bing`);loadHomeProt();}
+    else toast(rr.note||rr.err||'修复失败','err');
+  });
+  $$('#hpBox [data-hpo]').forEach(btn=>btn.onclick=()=>{
+    const map={edge:'msedge://settings/search',chrome:'chrome://settings/search',firefox:'about:preferences#search'};
+    if(REAL&&window.depk.openUrl)window.depk.openUrl(map[btn.dataset.hpo]||'https://www.bing.com/');
+    else window.open('https://www.bing.com/','_blank');
+  });
 }
 function rNetMail(){
   $('#netBody').innerHTML=`
@@ -1261,10 +1307,13 @@ function rDevApp(){
 function rDevUsb(){
   const ctrls=[['USB 存储管控','允许读取、禁止写入（仅受信设备可写）','on'],['USB 安全扫描','插入即扫描，命中自动隔离','on'],['蓝牙管控','配对需审批','on'],['摄像头管控','工作时段禁止','off'],['打印管控','打印行为审计 + 敏感内容阻断','on'],['截屏管控','截屏/录屏检测告警','off'],['外接显示器','HDMI 内容审计','off'],['读卡器/光驱','物理禁用','on']];
   $('#devBody').innerHTML=`
-  <div class="card"><div class="card-title">外设管控</div><div class="grid-2">${ctrls.map(c=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${c[0]}</div><div class="t-desc">${c[1]}</div></div><div class="toggle ${c[2]==='on'?'on':''}"></div></div>`).join('')}</div></div>
+  <div class="card"><div class="card-title flex between"><span>外设管控</span><span class="stat-chip" style="border-color:var(--border-2)">U 盘自动扫描：<span id="usbAutoState" style="color:${store.autoUsb?'var(--green)':'var(--text-3)'};font-weight:700">${store.autoUsb?'已开启':'已关闭'}</span></span></div><div class="grid-2">${ctrls.map(c=>`<div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">${c[0]}</div><div class="t-desc">${c[1]}</div></div><div class="toggle ${c[2]==='on'?'on':''}"></div></div>`).join('')}
+    <div class="tgl-row" style="border:1px solid var(--border)"><div class="t-info"><div class="t-title">U 盘自动扫描</div><div class="t-desc">插入即自动扫描（真实生效）</div></div><div class="toggle ${store.autoUsb?'on':''}" id="tgUsbAuto"></div></div>
+  </div></div>
   <div class="grid-2 mt16">
     <div class="card"><div class="card-title">设备事件</div>
-      ${[['USB 设备已插入','SanDisk 32GB · WIN-财务部-01 · 自动扫描完成，未发现威胁','1 小时前','green'],['未知蓝牙设备','配对请求被拦截 · WIN-研发部-07','2 小时前','amber'],['打印任务已审计','工资单.pdf · 3 页 · 打印机 HR-P01','4 小时前','blue'],['USB 写入被阻止','未受信 U 盘写入请求已拒绝 · MAC-设计-01','1 天前','red']].map(e=>`<div class="list-item"><span class="sev ${e[3]}"></span><div class="grow"><div style="font-size:12.5px;font-weight:600">${e[0]}</div><div style="font-size:11px;color:var(--text-3)">${e[1]} · ${e[2]}</div></div></div>`).join('')}
+      ${(store.usbEvents||[]).map(e=>`<div class="list-item"><span class="sev ${e.hasAutorun?'red':'green'}"></span><div class="grow"><div style="font-size:12.5px;font-weight:600">USB 设备已插入（真实监控）</div><div style="font-size:11px;color:var(--text-3)">${esc((e.label?e.label+' · ':'')+e.drive+' 盘')}${e.hasAutorun?' · 发现 autorun.inf 风险':' · 已自动扫描'} · ${relT(e.time)}</div></div></div>`).join('')}
+      ${[['未知蓝牙设备','配对请求被拦截 · WIN-研发部-07','2 小时前','amber'],['打印任务已审计','工资单.pdf · 3 页 · 打印机 HR-P01','4 小时前','blue'],['USB 写入被阻止','未受信 U 盘写入请求已拒绝 · MAC-设计-01','1 天前','red']].map(e=>`<div class="list-item"><span class="sev ${e[3]}"></span><div class="grow"><div style="font-size:12.5px;font-weight:600">${e[0]}</div><div style="font-size:11px;color:var(--text-3)">${e[1]} · ${e[2]}</div></div></div>`).join('')}
     </div>
     <div class="card"><div class="card-title">设备台账 <span class="sub">资产清点</span></div>
       <div class="kv"><span class="k">受管 USB 设备</span><span class="v">14 台（含 3 台受信）</span></div>
@@ -1273,6 +1322,7 @@ function rDevUsb(){
       <div class="kv"><span class="k">硬件变更告警</span><span class="v">2 条（内存更换）</span></div>
       <button class="btn btn-secondary btn-sm mt12">${I.refresh} 重新清点</button></div>
   </div>`;
+  const ua=$('#tgUsbAuto');if(ua)ua.onclick=()=>{store.autoUsb=!store.autoUsb;ua.classList.toggle('on',store.autoUsb);$('#usbAutoState').textContent=store.autoUsb?'已开启':'已关闭';$('#usbAutoState').style.color=store.autoUsb?'var(--green)':'var(--text-3)';save();audit('USB 防护','U 盘自动扫描 '+(store.autoUsb?'开启':'关闭'));toast('U 盘自动扫描已'+(store.autoUsb?'开启':'关闭'),'ok');};
 }
 function rDevDlp(){
   $('#devBody').innerHTML=`
@@ -1424,6 +1474,120 @@ function micAlarmStop(){
 }
 
 /* ---------- 漏洞与补丁 ---------- */
+
+/* ================= 优化加速 ================= */
+const BOOST_TABS=[{id:'one',l:'一键优化'},{id:'proc',l:'后台进程'},{id:'junk',l:'垃圾清理'}];
+const SYSTEM_KEEP=['System','Registry','Memory Compression','smss.exe','csrss.exe','wininit.exe','services.exe','lsass.exe','winlogon.exe','fontdrvhost.exe','dwm.exe','explorer.exe','SearchHost.exe','RuntimeBroker.exe','ShellExperienceHost.exe','StartMenuExperienceHost.exe','ctfmon.exe','sihost.exe','taskhostw.exe','audiodg.exe','spoolsv.exe','WmiPrvSE.exe','svchost.exe','depksecurityassistant.exe','DEPKSecurityAssistant.exe'];
+function renderBoost(){
+  const tab=store.tab||'one';
+  $('#tbTitle').textContent='优化加速';$('#tbCrumb').textContent='真实本机优化 · 可自选保留进程';
+  $('#viewInner').innerHTML=`<div class="view-fade"><div class="pagerow">${tabBar(BOOST_TABS,tab,'boost')}</div><div id="boostBody"></div></div>`;
+  bindTabs('#viewInner','boost');
+  ({one:rBoostOne,proc:rBoostProc,junk:rBoostJunk}[tab])();
+}
+function rBoostOne(){
+  const kept=store.keepProcs||[];
+  $('#boostBody').innerHTML=`
+  <div class="grid-2">
+    <div class="card"><div class="card-title">${I.zap} 一键优化</div>
+      <p style="font-size:12.5px;color:var(--text-2);line-height:1.8">按安全规则释放系统资源：<br>· 结束非白名单的用户进程（系统关键进程与您保留的进程除外）<br>· 清理临时文件与回收站<br>· 全程可恢复，保留名单在「后台进程」中自选</p>
+      <div class="flex mt12" style="gap:8px">
+        <button class="btn btn-primary" id="btnBoostGo" ${REAL?'':'disabled'}>${I.zap} 立即一键优化</button>
+        ${REAL?'':'<span class="pill amber">浏览器预览：真实优化需 Windows 版</span>'}
+      </div>
+      <div class="kv mt16"><span class="k">当前保留进程</span><span class="v">${kept.length?kept.map(esc).join('、'):'默认（系统关键进程）'}</span></div>
+      <div class="kv"><span class="k">优化策略</span><span class="v">安全优先 · 不触碰系统关键进程</span></div>
+    </div>
+    <div class="card"><div class="card-title">上次优化结果</div><div id="boostLast">${store.lastBoost?`<div class="kpi-grid">
+      <div class="card kpi"><div class="k-ico" style="background:var(--green-soft);color:var(--green)">${I.db}</div><div><div class="k-val">${fmtSize(store.lastBoost.mem)}</div><div class="k-lbl">释放内存</div></div></div>
+      <div class="card kpi"><div class="k-ico" style="background:var(--accent-soft);color:var(--accent)">${I.trash}</div><div><div class="k-val">${fmtSize(store.lastBoost.disk)}</div><div class="k-lbl">清理磁盘</div></div></div>
+      <div class="card kpi"><div class="k-ico" style="background:var(--amber-soft);color:var(--amber)">${I.zap}</div><div><div class="k-val">${store.lastBoost.killed}</div><div class="k-lbl">结束进程</div></div></div></div>
+      <div style="font-size:11px;color:var(--text-3);margin-top:8px">${relT(store.lastBoost.t)}</div>`:`<div class="empty">${I.refresh}<div>尚未执行过一键优化</div></div>`}</div></div>
+  </div>`;
+  const go=$('#btnBoostGo');
+  if(go)go.onclick=async()=>{
+    if(!REAL){toast('请安装 Windows 版使用真实优化','warn');return;}
+    if(!confirm('确定执行一键优化？将结束非保留的用户进程并清理临时文件。'))return;
+    go.innerHTML=`${I.zap} 优化中…`;go.disabled=true;
+    try{
+      const rp=await window.depk.getProcesses();
+      const keptSet=new Set([...SYSTEM_KEEP,...(store.keepProcs||[]).map(x=>String(x).toLowerCase())]);
+      let killed=0,freedMem=0;
+      const killable=(rp.data||[]).filter(p=>!keptSet.has(String(p.name).toLowerCase()));
+      for(const p of killable.slice(0,120)){
+        const r=await window.depk.killProcess(p.pid);
+        if(r.ok){killed++;freedMem+=(p.mem||0);}
+      }
+      const rj=await window.depk.scanJunk();
+      const junkIds=(rj.data||[]).filter(j=>j.id==='temp_user'||j.id==='temp_win'||j.id==='recycle').map(j=>j.id);
+      let freedDisk=0;
+      if(junkIds.length){const rc=await window.depk.cleanJunk(junkIds);freedDisk=rc.freed||0;}
+      store.lastBoost={t:Date.now(),mem:freedMem,disk:freedDisk,killed};save();
+      toast(`一键优化完成：结束 ${killed} 个进程，释放内存 ${fmtSize(freedMem)}、磁盘 ${fmtSize(freedDisk)}`,'ok');
+      audit('一键优化',`结束 ${killed} 个进程 · 释放 ${fmtSize(freedMem)} 内存 / ${fmtSize(freedDisk)} 磁盘`);
+      rBoostOne();
+    }catch(e){toast('优化失败：'+(e&&e.message||e),'err');go.disabled=false;go.innerHTML=`${I.zap} 立即一键优化`;}
+  };
+}
+function rBoostProc(){
+  $('#boostBody').innerHTML=`<div class="flex mb16" style="justify-content:space-between;flex-wrap:wrap;gap:10px">
+    <div class="flex" style="gap:8px"><button class="btn btn-primary btn-sm" id="bpRefresh">${I.refresh} 刷新进程</button><span class="stat-chip" style="border-color:var(--border-2)" id="bpCount">—</span><span class="stat-chip" style="border-color:var(--border-2)">勾选「保留」的进程不会被一键优化结束</span></div>
+    <input placeholder="搜索进程名…" id="bpSearch" style="width:200px"></div>
+  <div id="bpBox">${locLoading()}</div>`;
+  $('#bpRefresh').onclick=loadBoostProc;$('#bpSearch').oninput=()=>drawBoostProc(store.procs||[]);
+  loadBoostProc();
+}
+async function loadBoostProc(){
+  const r=await window.depk.getProcesses();
+  if(!r.ok){$('#bpBox').innerHTML=`<div class="empty">读取失败：${esc(r.err)}</div>`;return;}
+  store.procs=r.data;$('#bpCount').textContent=r.data.length+' 个进程';drawBoostProc(r.data);
+}
+function drawBoostProc(list){
+  const q=($('#bpSearch')&&$('#bpSearch').value||'').toLowerCase();
+  const rows=list.filter(p=>!q||p.name.toLowerCase().includes(q));
+  const kept=new Set((store.keepProcs||[]).map(x=>String(x).toLowerCase()));
+  $('#bpBox').innerHTML=`<div class="table-wrap"><table class="tbl"><colgroup><col style="width:15%"><col style="width:8%"><col style="width:10%"><col style="width:33%"><col style="width:12%"><col style="width:10%"><col style="width:12%"></colgroup>
+  <thead><tr><th>进程名</th><th>PID</th><th>内存</th><th>可执行路径</th><th>类型</th><th>保留</th><th>操作</th></tr></thead>
+  <tbody>${rows.map(p=>{const isSys=SYSTEM_KEEP.includes(p.name);const isKept=kept.has(String(p.name).toLowerCase());return `<tr><td style="font-weight:600">${esc(p.name)}</td><td class="num">${p.pid}</td><td class="num">${fmtSize(p.mem)}</td><td class="mono" style="font-size:10.5px">${esc(p.path||'（系统进程）')}</td><td><span class="pill ${isSys?'blue':'gray'}">${isSys?'系统关键':'用户'}</span></td>
+  <td><div class="toggle ${isKept?'on':''}" data-keep="${esc(p.name)}"></div></td>
+  <td><button class="btn btn-danger btn-sm" data-kill="${p.pid}" data-name="${esc(p.name)}" ${isSys?'disabled':''}>结束</button></td></tr>`;}).join('')||'<tr><td colspan="7" style="text-align:center;color:var(--text-3)">无匹配进程</td></tr>'}</tbody></table></div>
+  <div class="flex mt12" style="gap:8px"><button class="btn btn-secondary btn-sm" id="bpClearKeep">${I.trash} 清空保留名单</button><span style="font-size:11px;color:var(--text-3)">保留名单已持久化，一键优化时跳过</span></div>`;
+  $$('#bpBox [data-keep]').forEach(t=>t.onclick=()=>{
+    const n=t.dataset.keep;const arr=store.keepProcs||[];
+    if(t.classList.contains('on')){store.keepProcs=arr.filter(x=>x!==n);t.classList.remove('on');}
+    else{store.keepProcs=[...arr,n];t.classList.add('on');}
+    save();toast('保留名单已更新','ok');
+  });
+  $$('#bpBox [data-kill]').forEach(b=>b.onclick=()=>confirmDlg('结束进程',`确认结束进程 <b>${b.dataset.name}</b> (PID ${b.dataset.kill})？`,async()=>{const r=await window.depk.killProcess(b.dataset.kill);if(r.ok){toast('进程已结束','ok');audit('优化加速',`结束进程 ${b.dataset.name}`);loadBoostProc();}else toast('结束失败：'+r.err,'err');},'结束'));
+  const cl=$('#bpClearKeep');if(cl)cl.onclick=()=>{store.keepProcs=[];save();toast('保留名单已清空','ok');drawBoostProc(store.procs||[]);};
+}
+function rBoostJunk(){
+  $('#boostBody').innerHTML=`<div class="flex mb16" style="gap:8px"><button class="btn btn-primary btn-sm" id="junkScan">${I.refresh} 扫描垃圾</button><button class="btn btn-danger btn-sm" id="junkClean" disabled>${I.trash} 清理选中</button><span class="stat-chip" style="border-color:var(--border-2)" id="junkSum">未扫描</span></div><div id="junkBox">${locLoading()}</div>`;
+  $('#junkScan').onclick=loadJunk;$('#junkClean').onclick=cleanJunkSel;
+  loadJunk();
+}
+async function loadJunk(){
+  const r=await window.depk.scanJunk();
+  if(!r.ok){$('#junkBox').innerHTML=`<div class="empty">扫描失败：${esc(r.err)}</div>`;return;}
+  store.junk=r.data||[];
+  const total=(store.junk||[]).reduce((a,b)=>a+(b.size||0),0);
+  $('#junkSum').textContent=(store.junk||[]).length+' 类 · 共 '+fmtSize(total);
+  $('#junkBox').innerHTML=`<div class="table-wrap"><table class="tbl"><colgroup><col style="width:6%"><col style="width:26%"><col style="width:14%"><col style="width:10%"><col style="width:44%"></colgroup>
+  <thead><tr><th></th><th>清理项</th><th>大小</th><th>文件数</th><th>说明</th></tr></thead>
+  <tbody>${(store.junk||[]).map(j=>`<tr><td><input type="checkbox" data-jk="${j.id}" checked style="width:15px;height:15px;accent-color:var(--accent)"></td><td style="font-weight:600">${esc(j.name)}</td><td class="num" style="color:${j.size>100*1024*1024?'var(--amber)':'inherit'}">${fmtSize(j.size)}</td><td class="num">${j.count}</td><td style="font-size:11px;color:var(--text-3)">安全可清理 · 删除后不可恢复</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">未发现可清理项</td></tr>'}</tbody></table></div>`;
+  $$('#junkBox input[data-jk]').forEach(c=>c.onchange=()=>{const ids=[...$$('#junkBox input[data-jk]:checked')].map(x=>x.dataset.jk);$('#junkClean').disabled=ids.length===0;});
+  $('#junkClean').disabled=(store.junk||[]).length===0;
+}
+async function cleanJunkSel(){
+  const ids=[...$$('#junkBox input[data-jk]:checked')].map(x=>x.dataset.jk);
+  if(!ids.length){toast('请先勾选清理项','warn');return;}
+  if(!confirm('确定清理选中的 '+ids.length+' 项？将删除对应缓存/临时文件，不可恢复。'))return;
+  const b=$('#junkClean');b.innerHTML=`${I.refresh} 清理中…`;b.disabled=true;
+  const r=await window.depk.cleanJunk(ids);
+  b.innerHTML=`${I.trash} 清理选中`;b.disabled=false;
+  if(r.ok){toast('清理完成：释放 '+fmtSize(r.freed||0),'ok');audit('垃圾清理',`清理 ${ids.length} 项 · 释放 ${fmtSize(r.freed||0)}`);loadJunk();}
+  else toast('清理失败：'+(r.err||'未知'),'err');
+}
 function renderPatching(){
   $('#tbTitle').textContent='漏洞与补丁管理';$('#tbCrumb').textContent=PAGE_TITLE.patching;
   const crit=store.vulns.filter(v=>v.sev==='crit').length,high=store.vulns.filter(v=>v.sev==='high').length,patchable=store.vulns.filter(v=>v.status!=='已修复').length;
@@ -1792,7 +1956,7 @@ function rCmpRep(){
 </script>
 <script>
 /* ================= 本机管理（真实系统数据 · 仅 Windows 版可用） ================= */
-const LOC_TABS=[{id:'proc',l:'进程管理'},{id:'startup',l:'启动项'},{id:'net',l:'网络连接'},{id:'sys',l:'系统信息'},{id:'soft',l:'软件清单'},{id:'unins',l:'卸载工具'},{id:'watch',l:'实时监控'}];
+const LOC_TABS=[{id:'proc',l:'进程管理'},{id:'startup',l:'启动项'},{id:'net',l:'网络连接'},{id:'sys',l:'系统信息'},{id:'soft',l:'软件清单'},{id:'unins',l:'卸载工具'},{id:'watch',l:'实时监控'},{id:'logon',l:'异常登录'}];
 function renderLocal(){
   const tab=store.tab||'proc';
   $('#tbTitle').textContent='本机管理';$('#tbCrumb').textContent='真实系统数据 · '+(REAL?'原生引擎已连接':'需 Windows 版');
@@ -1800,7 +1964,7 @@ function renderLocal(){
   <div id="locBody"></div></div>`;
   bindTabs('#viewInner','local');
   if(!REAL){$('#locBody').innerHTML=`<div class="empty">${I.monitor}<div>安装 Windows 版后，此处将展示本机真实进程、启动项、网络连接、系统信息与软件清单</div></div>`;return;}
-  ({proc:rLocProc,startup:rLocStartup,net:rLocNet,sys:rLocSys,soft:rLocSoft,unins:rLocUnins,watch:rLocWatch}[tab])();
+  ({proc:rLocProc,startup:rLocStartup,net:rLocNet,sys:rLocSys,soft:rLocSoft,unins:rLocUnins,watch:rLocWatch,logon:rLocLogon}[tab])();
 }
 function locLoading(){return `<div class="flex" style="gap:12px;align-items:center;padding:40px 0;justify-content:center"><div class="scan-ring running" style="width:44px;height:44px;border-width:2px"><span class="sr-ico" style="width:18px;height:18px">${I.refresh}</span></div><span style="color:var(--text-3);font-size:13px">正在读取本机数据…</span></div>`;}
 function rLocProc(){
@@ -1829,11 +1993,28 @@ function rLocStartup(){
 }
 async function loadStartup(){
   const r=await window.depk.getStartup();
+  const dis=store.disabledStartup||[];
   $('#stBox').innerHTML=!r.ok?`<div class="empty">读取失败：${esc(r.err)}</div>`:
-  (r.data.length?`<div class="table-wrap"><table class="tbl"><colgroup><col style="width:20%"><col style="width:60%"><col style="width:10%"><col style="width:10%"></colgroup>
-  <thead><tr><th>名称</th><th>命令</th><th>注册表</th><th>建议</th></tr></thead>
-  <tbody>${r.data.map(s=>`<tr><td style="font-weight:600">${esc(s.name)}</td><td class="mono" style="font-size:11px">${esc(s.command)}</td><td><span class="tag">${s.hive}</span></td><td><span class="pill ${/powershell|cmd|mshta|regsvr32|wscript|cscript|https?:|temp/i.test(s.command)?'amber':'green'}">${/powershell|cmd|mshta|regsvr32|wscript|cscript|https?:|temp/i.test(s.command)?'建议核查':'正常'}</span></td></tr>`).join('')}</tbody></table></div>`
-  :`<div class="empty">${I.check}<div>未读取到启动项（可能权限受限，请以管理员运行）</div></div>`);
+  `<div class="table-wrap"><table class="tbl"><colgroup><col style="width:20%"><col style="width:50%"><col style="width:9%"><col style="width:9%"><col style="width:12%"></colgroup>
+  <thead><tr><th>名称</th><th>命令</th><th>注册表</th><th>建议</th><th>操作</th></tr></thead>
+  <tbody>${(r.data||[]).map(s=>`<tr><td style="font-weight:600">${esc(s.name)}</td><td class="mono" style="font-size:11px">${esc(s.command)}</td><td><span class="tag">${s.hive}</span></td><td><span class="pill ${/powershell|cmd|mshta|regsvr32|wscript|cscript|https?:|temp/i.test(s.command)?'amber':'green'}">${/powershell|cmd|mshta|regsvr32|wscript|cscript|https?:|temp/i.test(s.command)?'建议核查':'正常'}</span></td>
+  <td><button class="btn btn-danger btn-sm" data-st-off="${esc(s.name)}" data-hive="${s.hive}" data-cmd="${esc(s.command)}">禁用</button></td></tr>`).join('')}
+  ${dis.map(d=>`<tr style="opacity:.55"><td style="font-weight:600">${esc(d.name)}</td><td class="mono" style="font-size:11px">${esc(d.command)}</td><td><span class="tag">${d.hive}</span></td><td><span class="pill gray">已禁用</span></td>
+  <td><button class="btn btn-secondary btn-sm" data-st-on="${esc(d.name)}" data-hive="${d.hive}" data-cmd="${esc(d.command)}">启用</button></td></tr>`).join('')}
+  </tbody></table></div>`;
+  $$('#stBox [data-st-off]').forEach(b=>b.onclick=async()=>{
+    const n=b.dataset.stOff,h=b.dataset.hive,c=b.dataset.cmd;
+    if(!confirm('确定禁用启动项「'+n+'」？（可在下方列表恢复）'))return;
+    const rr=await window.depk.toggleStartup(n,h,c,false);
+    if(rr.ok){store.disabledStartup=store.disabledStartup.filter(x=>!(x.name===n&&x.hive===h));store.disabledStartup.push({name:n,hive:h,command:c});save();toast('已禁用：'+n,'ok');audit('启动项','禁用 '+n);loadStartup();}
+    else toast('禁用失败：'+(rr.err||'需要管理员权限'),'err');
+  });
+  $$('#stBox [data-st-on]').forEach(b=>b.onclick=async()=>{
+    const n=b.dataset.stOn,h=b.dataset.hive,c=b.dataset.cmd;
+    const rr=await window.depk.toggleStartup(n,h,c,true);
+    if(rr.ok){store.disabledStartup=store.disabledStartup.filter(x=>!(x.name===n&&x.hive===h));save();toast('已启用：'+n,'ok');audit('启动项','启用 '+n);loadStartup();}
+    else toast('启用失败：'+(rr.err||'需要管理员权限'),'err');
+  });
 }
 function rLocNet(){
   $('#locBody').innerHTML=`<div class="flex mb16" style="gap:8px"><button class="btn btn-primary btn-sm" id="netRefresh">${I.refresh} 刷新连接</button><span class="stat-chip" style="border-color:var(--border-2)">本机活动 TCP 连接（非监听）</span></div><div id="netBox">${locLoading()}</div>`;
@@ -1845,6 +2026,29 @@ async function loadNet(){
   `<div class="table-wrap"><table class="tbl"><colgroup><col style="width:24%"><col style="width:30%"><col style="width:14%"><col style="width:12%"><col style="width:20%"></colgroup>
   <thead><tr><th>本地地址</th><th>远程地址</th><th>状态</th><th>PID</th><th>提示</th></tr></thead>
   <tbody>${r.data.map(c=>`<tr><td class="mono" style="font-size:11px">${esc(c.local)}</td><td class="mono" style="font-size:11px">${esc(c.remote)}</td><td><span class="pill ${c.state==='Established'?'blue':'gray'}">${c.state}</span></td><td class="num">${c.pid}</td><td style="font-size:11px;color:var(--text-3)">${/0\.0\.0\.0|127\.0\.0\.1/.test(c.remote)?'本机/内网':'外联连接'}</td></tr>`).join('')||'<tr><td colspan="5" style="text-align:center;color:var(--text-3)">当前无活动连接</td></tr>'}</tbody></table></div>`;
+}
+function rLocLogon(){
+  $('#locBody').innerHTML=`<div class="flex mb16" style="gap:8px"><button class="btn btn-primary btn-sm" id="logonRefresh">${I.refresh} 刷新</button><span class="stat-chip" style="border-color:var(--border-2)">读取安全日志（Event ID 4624 成功 / 4625 失败）· 近 24 小时 · 需管理员权限</span></div><div id="logonBox">${locLoading()}</div>`;
+  $('#logonRefresh').onclick=loadLogons;loadLogons();
+}
+async function loadLogons(){
+  const r=await window.depk.failedLogons();
+  if(!r.ok){$('#logonBox').innerHTML=`<div class="empty">${esc(r.err||'读取失败')}</div>`;return;}
+  const f=(r.failed||[]),o=(r.okLogons||[]);
+  $('#logonBox').innerHTML=`
+  <div class="grid-3 mb16">
+    <div class="card kpi"><div class="k-ico" style="background:var(--red-soft);color:var(--red)">${I.shieldX}</div><div><div class="k-val">${f.length}</div><div class="k-lbl">登录失败（4625）</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:var(--green-soft);color:var(--green)">${I.check}</div><div><div class="k-val">${o.length}</div><div class="k-lbl">登录成功（4624）</div></div></div>
+    <div class="card kpi"><div class="k-ico" style="background:${f.length>5?'var(--amber-soft)':'var(--accent-soft)'};color:${f.length>5?'var(--amber)':'var(--accent)'}">${I.lock}</div><div><div class="k-val">${f.length>5?'高风险':'正常'}</div><div class="k-lbl">暴力破解风险评估</div></div></div>
+  </div>
+  <div class="card"><div class="card-title">${I.alert} 登录失败记录（近 24 小时）</div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:24%"><col style="width:24%"><col style="width:30%"><col style="width:22%"></colgroup>
+    <thead><tr><th>时间</th><th>账户</th><th>来源 IP</th><th>状态</th></tr></thead>
+    <tbody>${f.map(x=>`<tr><td class="mono" style="font-size:11px">${esc(x.time)}</td><td style="font-weight:600">${esc(x.user)}</td><td class="mono" style="font-size:11px">${esc(x.ip)}</td><td><span class="pill red">失败</span></td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-3)">近 24 小时无失败登录记录（或无安全日志权限）</td></tr>'}</tbody></table></div></div>
+  <div class="card mt16"><div class="card-title">${I.check} 登录成功记录（近 24 小时）</div>
+    <div class="table-wrap"><table class="tbl"><colgroup><col style="width:24%"><col style="width:24%"><col style="width:30%"><col style="width:22%"></colgroup>
+    <thead><tr><th>时间</th><th>账户</th><th>来源 IP</th><th>状态</th></tr></thead>
+    <tbody>${o.map(x=>`<tr><td class="mono" style="font-size:11px">${esc(x.time)}</td><td style="font-weight:600">${esc(x.user)}</td><td class="mono" style="font-size:11px">${esc(x.ip)}</td><td><span class="pill green">成功</span></td></tr>`).join('')||'<tr><td colspan="4" style="text-align:center;color:var(--text-3)">近 24 小时无登录记录</td></tr>'}</tbody></table></div></div>`;
 }
 function rLocSys(){
   $('#locBody').innerHTML=locLoading();
@@ -2162,10 +2366,16 @@ function rSetGen(){
   $('#setBody').innerHTML=`
   <div class="grid-2">
     <div class="card"><div class="card-title">外观</div>
-      <div class="tgl-row"><div class="t-info"><div class="t-title">主题</div><div class="t-desc">跟随 Win11 风格</div></div>
-        <div class="flex" style="gap:8px"><select id="setTheme" style="width:130px"><option value="dark" ${store.theme==='dark'?'selected':''}>深色</option><option value="light" ${store.theme==='light'?'selected':''}>浅色</option></select></div></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">主题</div><div class="t-desc">自动跟随系统深色 / 浅色模式</div></div>
+        <div class="flex" style="gap:8px"><select id="setTheme" style="width:150px"><option value="auto" ${store.themeMode==='auto'?'selected':''}>自动（跟随系统）</option><option value="dark" ${store.themeMode==='dark'?'selected':''}>深色</option><option value="light" ${store.themeMode==='light'?'selected':''}>浅色</option></select></div></div>
       <div class="tgl-row"><div class="t-info"><div class="t-title">启动时最小化到托盘</div><div class="t-desc">常驻系统托盘静默保护</div></div><div class="toggle on"></div></div>
       <div class="tgl-row"><div class="t-info"><div class="t-title">开机自启</div><div class="t-desc">登录后自动加载防护</div></div><div class="toggle on"></div></div>
+    </div>
+    <div class="card"><div class="card-title">快捷入口</div>
+      <div class="tgl-row" style="cursor:pointer" id="rowSite"><div class="t-info"><div class="t-title">官方网站 dsa.ct.ws</div><div class="t-desc">查看全部功能与下载入口（Gitee / GitHub）</div></div><span class="pill blue">${I.link} 打开官网</span></div>
+      <div class="tgl-row" style="cursor:pointer" id="rowGitee"><div class="t-info"><div class="t-title">Gitee 仓库</div><div class="t-desc">国内高速下载 · 发行版</div></div><span class="pill blue">${I.download} 打开</span></div>
+      <div class="tgl-row" style="cursor:pointer" id="rowGithub"><div class="t-info"><div class="t-title">GitHub 仓库</div><div class="t-desc">开源代码 · MIT 永久免费</div></div><span class="pill blue">${I.link} 打开</span></div>
+      <div class="tgl-row"><div class="t-info"><div class="t-title">右键菜单集成</div><div class="t-desc">文件/文件夹右键增加「用 DEPK 扫描」（真实注册表写入）</div></div><div class="toggle ${store.ctxOn?'on':''}" id="tgCtx"></div></div>
     </div>
     <div class="card"><div class="card-title">通知</div>
       <div class="tgl-row"><div class="t-info"><div class="t-title">威胁告警通知</div><div class="t-desc">邮件 / 短信 / 飞书 / App 推送</div></div><div class="toggle on"></div></div>
@@ -2178,7 +2388,11 @@ function rSetGen(){
     <div class="tgl-row"><div class="t-info"><div class="t-title">遥测数据收集</div><div class="t-desc">向云端提交威胁情报（不含个人文件内容）</div></div><div class="toggle on"></div></div>
     <div class="tgl-row"><div class="t-info"><div class="t-title">云查杀</div><div class="t-desc">文件哈希与信誉查询</div></div><div class="toggle on"></div></div>
     <div class="tgl-row"><div class="t-info"><div class="t-title">改进计划</div><div class="t-desc">帮助优化检测模型</div></div><div class="toggle off"></div></div></div>`;
-  $('#setTheme').onchange=e=>{store.theme=e.target.value;save();applyTheme();};
+  $('#setTheme').onchange=e=>{store.themeMode=e.target.value;store.theme=store.themeMode==='auto'?'dark':store.themeMode;save();applyTheme();toast('主题已切换：'+(store.themeMode==='auto'?'自动跟随系统':store.themeMode==='dark'?'深色':'浅色'),'ok');};
+  const rowSite=$('#rowSite');if(rowSite)rowSite.onclick=()=>{REAL&&window.depk.openUrl?window.depk.openUrl('https://dsa.ct.ws'):window.open('https://dsa.ct.ws','_blank');};
+  const rowGitee=$('#rowGitee');if(rowGitee)rowGitee.onclick=()=>{REAL&&window.depk.openUrl?window.depk.openUrl('https://gitee.com/after18/DEPKSecurityAssistant/releases'):window.open('https://gitee.com/after18/DEPKSecurityAssistant/releases','_blank');};
+  const rowGithub=$('#rowGithub');if(rowGithub)rowGithub.onclick=()=>{REAL&&window.depk.openUrl?window.depk.openUrl('https://github.com/leiting2327/DEPKSecurityAssistant'):window.open('https://github.com/leiting2327/DEPKSecurityAssistant','_blank');};
+  const tgCtx=$('#tgCtx');if(tgCtx){tgCtx.onclick=async()=>{const next=!store.ctxOn;const r=await window.depk.ctxSet(next);if(r.ok){store.ctxOn=next;tgCtx.classList.toggle('on',next);save();audit('右键菜单','右键扫描 '+(next?'已开启':'已关闭'));toast('右键「用 DEPK 扫描」已'+(next?'开启':'关闭'),'ok');}else toast('操作失败：'+(r.err||'未知'),'err');};}
 }
 function rSetProt(){
   $('#setBody').innerHTML=`
@@ -2204,12 +2418,14 @@ function rSetUpd(){
   $('#setBody').innerHTML=`
   <div class="grid-2">
     <div class="card"><div class="card-title">更新状态</div>
-      <div class="kv"><span class="k">产品版本</span><span class="v">豆包安全卫士 3.4.210（正式版）</span></div>
+      <div class="kv"><span class="k">产品版本</span><span class="v" id="setVerTxt">DEPK Security Assistant 3.4.217（正式版）</span></div>
       <div class="kv"><span class="k">引擎版本</span><span class="v">${store.engineVer}</span></div>
       <div class="kv"><span class="k">病毒库版本</span><span class="v">${store.updateVer}（刚刚更新）</span></div>
       <div class="kv"><span class="k">特征数量</span><span class="v">${store.sigCount.toLocaleString()}</span></div>
-      <div class="kv"><span class="k">更新通道</span><span class="v">正式通道（Beta 可选）</span></div>
-      <button class="btn btn-primary mt12" id="btnCheckUpd">${I.refresh} 检查更新</button></div>
+      <div class="kv"><span class="k">更新通道</span><span class="v">Gitee 发行版（国内高速）· GitHub 兜底</span></div>
+      <div class="kv"><span class="k">自动检查</span><span class="v" style="color:var(--green)">每 1 小时后台静默检测（低占用）</span></div>
+      <div class="flex mt12" style="gap:8px"><button class="btn btn-primary btn-sm" id="btnCheckUpd">${I.refresh} 立即检查更新</button><button class="btn btn-secondary btn-sm" id="btnGiteeUpd">${I.download} 打开 Gitee 下载页</button></div>
+      <div id="updRes" class="mt12" style="font-size:12px;color:var(--text-2)"></div></div>
     <div class="card"><div class="card-title">更新分发 <span class="sub">更新代理 · 缓存更新</span></div>
       <div class="tgl-row"><div class="t-info"><div class="t-title">更新代理</div><div class="t-desc">内网分发，节省外网带宽</div></div><div class="toggle on"></div></div>
       <div class="tgl-row"><div class="t-info"><div class="t-title">缓存更新</div><div class="t-desc">就近缓存，加速终端升级</div></div><div class="toggle on"></div></div>
@@ -2217,7 +2433,14 @@ function rSetUpd(){
       <div class="kv mt12"><span class="k">分发节点</span><span class="v">3 个 · 全部健康</span></div>
       <div class="kv"><span class="k">本月分发量</span><span class="v">8.4 GB</span></div></div>
   </div>`;
-  $('#btnCheckUpd').onclick=()=>{const b=$('#btnCheckUpd');b.innerHTML=`${I.refresh} 检查中…`;setTimeout(()=>{b.innerHTML=`${I.check} 已是最新版本`;toast('当前已是最新版本','ok');audit('软件更新','检查更新：已是最新');setTimeout(()=>b.innerHTML=`${I.refresh} 检查更新`,2200);},1300);};
+  $('#btnGiteeUpd').onclick=()=>{REAL&&window.depk.openUrl?window.depk.openUrl('https://gitee.com/after18/DEPKSecurityAssistant/releases'):window.open('https://gitee.com/after18/DEPKSecurityAssistant/releases','_blank');};
+  $('#btnCheckUpd').onclick=async()=>{const b=$('#btnCheckUpd'),r=$('#updRes');b.innerHTML=`${I.refresh} 检查中…`;r.innerHTML='正在请求 Gitee 发行版 API…';
+    if(REAL&&window.depk.checkUpdate){const u=await window.depk.checkUpdate();
+      if(u&&u.ok===false){r.innerHTML='<span style="color:var(--amber)">'+esc(u.err||'检查失败，请检查网络')+'</span>';}
+      else if(u&&u.latest){r.innerHTML='<span style="color:var(--amber)">发现新版本 v'+esc(u.version)+'</span> · <a href="#" id="updGitee">打开 Gitee 下载</a>';const a=$('#updGitee');if(a)a.onclick=e=>{e.preventDefault();window.depk.openUrl('https://gitee.com/after18/DEPKSecurityAssistant/releases');};}
+      else{r.innerHTML='<span style="color:var(--green)">已是最新版本（v'+esc(store.updateVer)+'）</span>';}
+    }else{r.innerHTML='<span style="color:var(--text-3)">浏览器预览：安装 Windows 版后此处将真实检查 Gitee 更新</span>';}
+    b.innerHTML=`${I.refresh} 立即检查更新`;};
 }
 function rSetInt(){
   const ints=[['SIEM 集成','Splunk / QRadar / 日志易 · 事件实时推送','已连接'],['SOAR 集成','自动化剧本联动 · 编排响应','已连接'],['Syslog 转发','udp://10.10.5.10:514 · TLS 加密','已连接'],['REST API','v3 全量接口 · API Key 轮换 30 天','已连接'],['AD/LDAP 防护集成','域控联动 · 身份威胁检测','已连接'],['SSO 单点登录','OIDC · 企业 IdP','已连接'],['多因素认证','TOTP / 短信 / 扫码','已启用'],['邮件网关联动','Exchange / 网易企业邮','已连接']];
@@ -2235,6 +2458,9 @@ function rSetInt(){
         <div><label style="font-size:12px;color:var(--text-3)">Webhook (SOAR)</label><input value="https://soar.corp.local/webhook/doubao" style="width:100%;margin-top:4px"></div>
       </div></div>
   </div>`;
+  const abtSite=$('#abtSite');if(abtSite)abtSite.onclick=()=>{REAL&&window.depk.openUrl?window.depk.openUrl('https://dsa.ct.ws'):window.open('https://dsa.ct.ws','_blank');};
+  const abtGitee=$('#abtGitee');if(abtGitee)abtGitee.onclick=()=>{REAL&&window.depk.openUrl?window.depk.openUrl('https://gitee.com/after18/DEPKSecurityAssistant/releases'):window.open('https://gitee.com/after18/DEPKSecurityAssistant/releases','_blank');};
+  const abtGh=$('#abtGh');if(abtGh)abtGh.onclick=()=>{REAL&&window.depk.openUrl?window.depk.openUrl('https://github.com/leiting2327/DEPKSecurityAssistant'):window.open('https://github.com/leiting2327/DEPKSecurityAssistant','_blank');};
   $('#btnTestInt').onclick=()=>{const r=$('#intRes');r.innerHTML=`<div class="progress"><div class="bar striped" style="width:30%"></div></div>`;setTimeout(()=>{r.innerHTML=`<div class="flex" style="gap:6px;flex-wrap:wrap;font-size:12px">${ints.map(i=>`<span class="pill green">${i[0]} ✓</span>`).join('')}</div>`;toast('全部 8 项集成连接正常','ok');audit('集成测试','测试全部安全集成连接');},1100);};
 }
 function rSetAbout(){
@@ -2242,12 +2468,13 @@ function rSetAbout(){
   <div class="card" style="text-align:center;padding:36px">
     <div style="width:72px;height:72px;margin:0 auto 14px;color:var(--accent)">${I.shieldck}</div>
     <h2 style="font-size:19px">DEPK Security Assistant <span class="tag">Windows 版</span></h2>
-    <div style="color:var(--text-3);font-size:12.5px;margin-top:6px">版本 3.4.210 (64-bit) · 引擎 ${store.engineVer} · 病毒库 ${store.updateVer}</div>
-    <div style="color:var(--text-3);font-size:11.5px;margin-top:4px">© 2026 DEPK Security · 本机安全助手（本地引擎真实可用）</div>
+    <div style="color:var(--text-3);font-size:12.5px;margin-top:6px">版本 3.4.217 (64-bit) · 引擎 ${store.engineVer} · 病毒库 ${store.updateVer}</div>
+    <div style="color:var(--text-3);font-size:11.5px;margin-top:4px">© 2026 DEPK Security · 永久免费 · 开源 (MIT) · 本机安全助手（本地引擎真实可用）</div>
     <div class="flex" style="justify-content:center;gap:10px;margin-top:18px">
       <button class="btn btn-secondary btn-sm">${I.check} 运行自检</button>
-      <button class="btn btn-secondary btn-sm">${I.download} 导出诊断信息</button>
-      <button class="btn btn-secondary btn-sm">${I.link} 开源组件</button>
+      <button class="btn btn-secondary btn-sm" id="abtSite">${I.link} 官网 dsa.ct.ws</button>
+      <button class="btn btn-secondary btn-sm" id="abtGitee">${I.download} Gitee 下载</button>
+      <button class="btn btn-secondary btn-sm" id="abtGh">${I.link} GitHub 开源</button>
     </div>
   </div>
   <div class="grid-3 mt16">
@@ -2264,7 +2491,7 @@ function rSetAbout(){
 /* ================= 主渲染 ================= */
 function renderView(){
   const t0=performance.now();
-  ({dashboard:renderDashboard,protection:renderProtection,network:renderNetwork,device:renderDevice,privacy:renderPrivacy,patching:renderPatching,edr:renderEDR,local:renderLocal,threat:renderThreat,compliance:renderCompliance,mgmt:renderMgmt,settings:renderSettings}[store.page]||renderDashboard)();
+  ({dashboard:renderDashboard,protection:renderProtection,network:renderNetwork,device:renderDevice,privacy:renderPrivacy,boost:renderBoost,patching:renderPatching,edr:renderEDR,local:renderLocal,threat:renderThreat,compliance:renderCompliance,mgmt:renderMgmt,settings:renderSettings}[store.page]||renderDashboard)();
   renderNav();updateStatus();
 }
 function updateStatus(){
@@ -2283,6 +2510,17 @@ function init(){
   $('#btnNotif').onclick=()=>showNotifs();
   $('#btnScanNow').onclick=()=>startScan('quick');
   const mcb=$('#micAlarmClose');if(mcb)mcb.onclick=()=>micAlarmStop();
+  if(window.matchMedia){const mq=window.matchMedia('(prefers-color-scheme: dark)');const tm=()=>{if(store.themeMode==='auto')applyTheme();};mq.addEventListener?mq.addEventListener('change',tm):mq.addListener(tm);}
+  if(REAL&&window.depk.onScanTarget){window.depk.onScanTarget(p=>{store.scanTargetPath=p;toast('收到扫描请求：'+p,'info');go('protection','scan');setTimeout(()=>realScanReal(p),400);});}
+  if(REAL&&window.depk.onUsbInserted){window.depk.onUsbInserted(d=>{
+    store.usbEvents.unshift(d);if(store.usbEvents.length>50)store.usbEvents.length=50;save();
+    pushNotif('U 盘已插入',(d.label?d.label+' · ':'')+d.drive+' 盘'+(d.hasAutorun?'（发现 autorun.inf，已标记风险）':''),d.hasAutorun?'red':'blue',d.hasAutorun?I.alert:I.usb);
+    if(d.hasAutorun){toast('警告：U 盘 '+d.drive+' 含 autorun.inf，已自动扫描','warn');}
+    if(store.autoUsb&&REAL){setTimeout(()=>realScanReal(d.drive+'\\'),1200);}
+    if(store.page==='device'&&store.tab==='usb')rDevUsb();
+  });}
+  if(REAL&&window.depk.onUpdateAvailable){window.depk.onUpdateAvailable(u=>{const prev=store.updateInfo;store.updateInfo=u;save();if(!prev||prev.version!==u.version)pushNotif('发现新版本 v'+u.version,'点击查看下载（Gitee）',u.latest?'accent':'blue',I.download);});}
+  if(REAL&&window.depk.onUpdateNotify){window.depk.onUpdateNotify(u=>{if(u&&u.latest===false){toast('当前已是最新版本','ok');}else if(u&&u.latest){toast('发现新版本 v'+u.version+'：'+u.url,'info');}});}
   setInterval(()=>{if(store.page==='privacy'&&store.privacy&&(store.privacy.cam||store.privacy.mic))privacyRefresh();},5000);
   if(REAL&&window.depk.onWatchEvent){window.depk.onWatchEvent(d=>{store.watchEvents.unshift(d);if(store.watchEvents.length>200)store.watchEvents.length=200;if(store.page==='local'&&store.tab==='watch')renderLocal();});}
   if(store.audit.length===0){audit('系统启动','DEPK Security Assistant 初始化完成');audit('登录','管理员通过 MFA 登录控制台');}

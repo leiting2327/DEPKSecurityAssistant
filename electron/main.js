@@ -1,4 +1,4 @@
-const { app, BrowserWindow, Menu, shell, dialog, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, shell, dialog, ipcMain, Tray, nativeImage, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
@@ -24,6 +24,66 @@ function isSetupMode() {
 
 let win = null;
 const SETUP = isSetupMode();
+const VERSION = '3.4.217';
+const UPDATER_GITEE = 'https://gitee.com/api/v5/repos/after18/DEPKSecurityAssistant/releases/latest';
+const UPDATER_GITHUB = 'https://api.github.com/repos/leiting2327/DEPKSecurityAssistant/releases/latest';
+const NETOFF_FILE = path.join(INSTALL_DIR, 'netoff.json');
+let scanTarget = null;
+{
+  const i = process.argv.indexOf('--scan');
+  if (i >= 0 && process.argv[i + 1]) scanTarget = process.argv[i + 1];
+}
+const gotLock = app.requestSingleInstanceLock();
+if (!gotLock) app.quit();
+function httpsGet(url, timeoutMs = 12000) {
+  return new Promise((resolve) => {
+    const lib = url.startsWith('https') ? require('https') : require('http');
+    const req = lib.get(url, { headers: { 'User-Agent': 'DEPKSecurityAssistant/' + VERSION, 'Accept': 'application/json' } }, (res) => {
+      let d = ''; res.setEncoding('utf8');
+      res.on('data', (c) => { d += c; if (d.length > 3e6) { req.destroy(); resolve(null); } });
+      res.on('end', () => resolve(d));
+    });
+    req.on('error', () => resolve(null));
+    req.setTimeout(timeoutMs, () => { req.destroy(); resolve(null); });
+  });
+}
+function cmpVer(a, b) {
+  const pa = String(a).replace(/^v/i, '').split('.').map(x => parseInt(x) || 0);
+  const pb = String(b).replace(/^v/i, '').split('.').map(x => parseInt(x) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const x = pa[i] || 0, y = pb[i] || 0;
+    if (x !== y) return x > y ? 1 : -1;
+  }
+  return 0;
+}
+async function updaterCheck(silent) {
+  const lastFile = path.join(INSTALL_DIR, 'last_check.json');
+  for (const url of [UPDATER_GITEE, UPDATER_GITHUB]) {
+    try {
+      const raw = await httpsGet(url);
+      if (!raw) continue;
+      const d = JSON.parse(raw);
+      const tag = (d.tag_name || '').replace(/^v/i, '');
+      if (!tag || cmpVer(tag, VERSION) <= 0) return { ok: true, latest: false, version: tag || VERSION };
+      const asset = (d.assets || []).find(a => a && /\.exe$/i.test(a.name || ''));
+      const url2 = (asset && (asset.browser_download_url || asset.browser_download_url)) || d.html_url || '';
+      return { ok: true, latest: true, version: tag, url: url2, notes: (d.body || '').slice(0, 600), source: url.includes('gitee') ? 'Gitee' : 'GitHub' };
+    } catch (e) { /* 尝试下一个源 */ }
+  }
+  return { ok: false, err: '无法连接更新服务器', silent };
+}
+let updateTimer = null, lastNotifyVer = '';
+function sendUpdateToUI(info) {
+  if (win && !win.isDestroyed() && info && info.latest) {
+    win.webContents.send('depk:updateAvailable', info);
+    if (info.version !== lastNotifyVer) { lastNotifyVer = info.version; win.webContents.send('depk:updateNotify', info); }
+  }
+}
+async function updaterLoop(silent) {
+  const info = await updaterCheck(silent);
+  if (info && info.ok && info.latest) sendUpdateToUI(info);
+  return info;
+}
 const QUAR_DIR = path.join(os.homedir(), 'DEPKSecurity', 'Quarantine');
 const META_FILE = path.join(QUAR_DIR, 'meta.json');
 const WATCHED = {};   // dir -> fs.FSWatcher
@@ -254,15 +314,56 @@ function createWindow() {
   });
   win.loadFile(SETUP ? 'installer.html' : 'index.html');
   win.once('ready-to-show', () => win.show());
+  win.on('close', (e) => { if (!SETUP && !global.__quitting && tray) { e.preventDefault(); win.hide(); } });
   win.on('closed', () => { win = null; });
+  win.webContents.once('did-finish-load', () => {
+    if (scanTarget && !SETUP) { win.webContents.send('depk:scanTarget', scanTarget); scanTarget = null; }
+  });
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
 }
 Menu.setApplicationMenu(null);
-app.whenReady().then(() => { createWindow(); app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); }); });
-app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit(); });
+let tray = null;
+global.__quitting = false;
+function initTray() {
+  if (SETUP || tray) return;
+  try {
+    const ico = nativeImage.createFromPath(path.join(__dirname, 'build', 'icon.ico'));
+    tray = new Tray(ico);
+    tray.setToolTip('DEPK Security Assistant');
+    tray.setContextMenu(Menu.buildFromTemplate([
+      { label: '打开主界面', click: () => { if (win) { win.show(); win.focus(); } else createWindow(); } },
+      { label: '检查更新', click: () => { updaterLoop(true).then(info => { if (info && !info.latest && win) win.webContents.send('depk:updateNotify', { latest: false }); }); } },
+      { type: 'separator' },
+      { label: '退出 DEPK', click: () => { global.__quitting = true; app.quit(); } }
+    ]));
+    tray.on('click', () => { if (win) { win.show(); win.focus(); } });
+  } catch (e) { tray = null; }
+}
+app.whenReady().then(() => {
+  createWindow(); initTray();
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
+  app.on('second-instance', (e, argv) => {
+    const i = argv.indexOf('--scan');
+    if (i >= 0 && argv[i + 1]) {
+      if (win) { win.show(); win.focus(); win.webContents.send('depk:scanTarget', argv[i + 1]); }
+      else { scanTarget = argv[i + 1]; createWindow(); }
+      return;
+    }
+    if (win) { win.show(); win.focus(); }
+  });
+  if (!SETUP) {
+    // 每小时自动检查更新（后台，占用极低）
+    setTimeout(() => updaterLoop(false), 15 * 1000);
+    updateTimer = setInterval(() => updaterLoop(false), 3600 * 1000);
+    // USB 插入监控（每 20 秒一次轻量查询）
+    usbPoll();
+    setInterval(usbPoll, 20 * 1000);
+  }
+});
+app.on('window-all-closed', () => { if (process.platform !== 'darwin' && (SETUP || !tray || global.__quitting)) app.quit(); });
 if (SETUP) {
   ipcMain.on('win:min', () => { if (win) win.minimize(); });
   ipcMain.on('win:close', () => { if (win) win.close(); });
@@ -377,7 +478,7 @@ if (SETUP) {
       await createShortcut(path.join(os.homedir(), 'Desktop', 'DEPK Security Assistant.lnk'), exe, '', 'DEPK Security Assistant', exe);
       // 注册表（卸载项 + Run 键）
       const unreg = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\DEPKSecurityAssistant';
-      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.216'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
+      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.217'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
       // 开机抢先启动：计划任务（登录触发 + 高优先级） + Run 键双保险
       if (autostart) {
         await psExec(`$a=New-ScheduledTaskAction -Execute '${exe}' -Argument '--app'; $t=New-ScheduledTaskTrigger -AtLogOn; $s=New-ScheduledTaskSettingsSet -Priority 4 -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries; Register-ScheduledTask -TaskName 'DEPKSecurityGuard' -Action $a -Trigger $t -Settings $s -Force | Out-Null`);
@@ -576,4 +677,203 @@ ipcMain.handle('privacy:kill', async (e, name) => {
   const r = await privacyKill(name);
   if (!r.ok) return { ok:false, err:r.err };
   return { ok:true, data:r.data };
+});
+
+/* =====================================================
+   v3.4.217 新能力：右键扫描 / 垃圾清理 / 启动项启停 / 异常登录 / 断网开关 / USB监控 / 更新 / 外链
+   ===================================================== */
+const CTX_KEY_FILE = 'HKCU:\\Software\\Classes\\*\\shell\\DEPKScan';
+const CTX_KEY_DIR = 'HKCU:\\Software\\Classes\\Directory\\shell\\DEPKScan';
+function ctxCmd(exe) { return '"' + exe + '" --scan "%1"'; }
+ipcMain.handle('depk:ctxStatus', async () => {
+  const r = await runPs(`@(Test-Path '${CTX_KEY_FILE}') -and @(Test-Path '${CTX_KEY_DIR}')`);
+  return { ok: true, on: /True/i.test(r.out) };
+});
+ipcMain.handle('depk:ctxSet', async (e, on) => {
+  const exe = process.execPath;
+  if (on) {
+    const r = await psExec(`New-Item '${CTX_KEY_FILE}' -Force | Out-Null; New-Item '${CTX_KEY_FILE}\\command' -Force | Out-Null; Set-ItemProperty '${CTX_KEY_FILE}' '(default)' '用 DEPK 扫描'; Set-ItemProperty '${CTX_KEY_FILE}' 'Icon' '${exe},0'; Set-ItemProperty '${CTX_KEY_FILE}\\command' '(default)' '${ctxCmd(exe)}'; New-Item '${CTX_KEY_DIR}' -Force | Out-Null; New-Item '${CTX_KEY_DIR}\\command' -Force | Out-Null; Set-ItemProperty '${CTX_KEY_DIR}' '(default)' '用 DEPK 扫描文件夹'; Set-ItemProperty '${CTX_KEY_DIR}' 'Icon' '${exe},0'; Set-ItemProperty '${CTX_KEY_DIR}\\command' '(default)' '${ctxCmd(exe)}'`);
+    return r;
+  }
+  const r = await psExec(`Remove-Item '${CTX_KEY_FILE}' -Recurse -Force -ErrorAction SilentlyContinue; Remove-Item '${CTX_KEY_DIR}' -Recurse -Force -ErrorAction SilentlyContinue`);
+  return r;
+});
+
+/* 垃圾清理：扫描各缓存目录大小（不删除），再按选中项删除 */
+const JUNK_TARGETS = [
+  { id: 'temp_user', name: '用户临时文件', env: 'TEMP' },
+  { id: 'temp_win', name: 'Windows 临时文件', path: 'C:\\Windows\\Temp' },
+  { id: 'cache_edge', name: 'Edge 浏览器缓存', path: path.join(process.env.LOCALAPPDATA || '', 'Microsoft\\Edge\\User Data\\Default\\Cache') },
+  { id: 'cache_chrome', name: 'Chrome 浏览器缓存', path: path.join(process.env.LOCALAPPDATA || '', 'Google\\Chrome\\User Data\\Default\\Cache') },
+  { id: 'cache_msedge2', name: 'Edge 缓存(Code Cache)', path: path.join(process.env.LOCALAPPDATA || '', 'Microsoft\\Edge\\User Data\\Default\\Code Cache') },
+  { id: 'upd_cache', name: 'Windows 更新缓存', path: 'C:\\Windows\\SoftwareDistribution\\Download' },
+  { id: 'thumb', name: '缩略图缓存', path: path.join(process.env.LOCALAPPDATA || '', 'Microsoft\\Windows\\Explorer') },
+  { id: 'recycle', name: '回收站', recycle: true }
+];
+function dirSize(p) {
+  return runPs(`if(Test-Path '${p}'){ $s=(Get-ChildItem '${p}' -Recurse -Force -File -ErrorAction SilentlyContinue | Measure-Object -Property Length -Sum).Sum; [pscustomobject]@{size=[long]$s;count=@(Get-ChildItem '${p}' -Recurse -Force -File -ErrorAction SilentlyContinue).Count} | ConvertTo-Json -Compress } else { '{}' }`).then(r => {
+    try { const d = JSON.parse(r.out); return { size: d.size || 0, count: d.count || 0 }; } catch (e) { return { size: 0, count: 0 }; }
+  });
+}
+ipcMain.handle('maintain:scanJunk', async () => {
+  const items = [];
+  for (const t of JUNK_TARGETS) {
+    let p = t.path || process.env[t.env] || '';
+    if (t.id === 'recycle') {
+      const r = await dirSize('C:\\$Recycle.Bin');
+      items.push({ id: t.id, name: t.name, size: r.size, count: r.count });
+      continue;
+    }
+    if (!p) continue;
+    const r = await dirSize(p);
+    items.push({ id: t.id, name: t.name, size: r.size, count: r.count });
+  }
+  return { ok: true, data: items.filter(x => x.size > 0) };
+});
+ipcMain.handle('maintain:cleanJunk', async (e, ids) => {
+  const set = new Set(ids || []);
+  let freed = 0;
+  for (const t of JUNK_TARGETS) {
+    if (!set.has(t.id)) continue;
+    if (t.id === 'recycle') { const r = await runPs('Clear-RecycleBin -Force -ErrorAction SilentlyContinue'); continue; }
+    let p = t.path || process.env[t.env] || '';
+    if (!p) continue;
+    const before = await dirSize(p);
+    await runPs(`Get-ChildItem '${p}' -Force -ErrorAction SilentlyContinue | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue`);
+    freed += before.size;
+  }
+  return { ok: true, freed };
+});
+
+/* 启动项启停（真实写注册表） */
+ipcMain.handle('depk:toggleStartup', async (e, { name, hive, command, enabled }) => {
+  const regPath = hive === 'HKLM' ? 'HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run' : 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run';
+  const safeName = String(name || '').replace(/[\\"]/g, '');
+  if (!safeName) return { ok: false, err: '无效的启动项名称' };
+  if (enabled) {
+    const r = await psExec(`Set-ItemProperty '${regPath}' '${safeName}' '${String(command || '').replace(/'/g, "''")}'`);
+    return r.ok ? { ok: true } : { ok: false, err: r.err, needAdmin: hive === 'HKLM' };
+  }
+  const r = await psExec(`Remove-ItemProperty '${regPath}' '${safeName}' -ErrorAction SilentlyContinue`);
+  return r.ok ? { ok: true } : { ok: false, err: r.err, needAdmin: hive === 'HKLM' };
+});
+
+/* 异常登录检测（安全日志 4624/4625） */
+ipcMain.handle('auth:failedLogons', async () => {
+  const script = `
+$ErrorActionPreference='SilentlyContinue'
+$f = @(Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4625; StartTime=(Get-Date).AddDays(-1)} -ErrorAction SilentlyContinue | Select-Object -First 50 TimeCreated, @{n='user';e={try{$_.Properties[5].Value}catch{'?'}}}, @{n='ip';e={try{$_.Properties[18].Value}catch{'?'}}}, @{n='reason';e={try{$_.Properties[9].Value}catch{'?'}}})
+$o = @(Get-WinEvent -FilterHashtable @{LogName='Security'; Id=4624; StartTime=(Get-Date).AddDays(-1)} -ErrorAction SilentlyContinue | Select-Object -First 30 TimeCreated, @{n='user';e={try{$_.Properties[5].Value}catch{'?'}}}, @{n='ip';e={try{$_.Properties[18].Value}catch{'?'}}})
+[pscustomobject]@{failed=@($f);ok=@($o)} | ConvertTo-Json -Depth 5 -Compress`;
+  const r = await jsonOut(script);
+  if (!r.ok) return { ok: false, err: '读取安全日志失败（需要管理员权限）' };
+  if (!r.data) return { ok: false, err: '安全日志不可读（请以管理员身份运行本软件）' };
+  const fmt = x => ({ time: x.TimeCreated ? new Date(x.TimeCreated).toLocaleString('zh-CN') : '', user: x.user || '?', ip: x.ip || '-', reason: x.reason || '' });
+  return { ok: true, failed: (r.data.failed || []).map(fmt), okLogons: (r.data.ok || []).map(fmt), failedCount: (r.data.failed || []).length };
+});
+
+/* 断网紧急开关（禁用所有活动网卡，可一键恢复） */
+ipcMain.handle('net:killSwitch', async () => {
+  const r = await jsonOut("$n=@(Get-NetAdapter | Where-Object {$_.Status -eq 'Up' -and $_.InterfaceDescription -notmatch 'Loopback'} | Select-Object -ExpandProperty Name); $n | ForEach-Object { Disable-NetAdapter -Name $_ -Confirm:$false -ErrorAction SilentlyContinue }; $n");
+  try { await fsp.mkdir(INSTALL_DIR, { recursive: true }); await fsp.writeFile(NETOFF_FILE, JSON.stringify(r.data || []), 'utf8'); } catch (e) {}
+  return { ok: true, disabled: r.data || [] };
+});
+ipcMain.handle('net:restoreNet', async () => {
+  let names = [];
+  try { names = JSON.parse(await fsp.readFile(NETOFF_FILE, 'utf8')); } catch (e) {}
+  for (const n of names) await runPs(`Enable-NetAdapter -Name '${String(n).replace(/'/g, "''")}' -Confirm:$false -ErrorAction SilentlyContinue`);
+  try { await fsp.rm(NETOFF_FILE, { force: true }); } catch (e) {}
+  return { ok: true, restored: names };
+});
+
+/* USB 插入监控（轻量轮询，仅主程序） */
+let lastDrives = new Set();
+async function usbPoll() {
+  if (SETUP) return;
+  const r = await jsonOut("Get-Volume | Where-Object DriveType -eq 2 | Select-Object DriveLetter,FileSystemLabel,@{n='size';e={$_.Size}},@{n='free';e={$_.SizeRemaining}}");
+  if (!r.ok || !Array.isArray(r.data)) return;
+  const now = new Set(r.data.map(d => d.DriveLetter).filter(Boolean));
+  for (const letter of now) {
+    if (!lastDrives.has(letter)) {
+      const info = r.data.find(d => d.DriveLetter === letter) || {};
+      const hasAuto = fs.existsSync(letter + ':\\autorun.inf');
+      if (win && !win.isDestroyed()) win.webContents.send('depk:usbInserted', { drive: letter, label: info.FileSystemLabel || '', hasAutorun: hasAuto, size: info.size || 0, free: info.free || 0, time: Date.now() });
+    }
+  }
+  lastDrives = now;
+}
+ipcMain.handle('depk:usbList', async () => {
+  const r = await jsonOut("Get-Volume | Where-Object DriveType -eq 2 | Select-Object DriveLetter,FileSystemLabel,@{n='size';e={$_.Size}},@{n='free';e={$_.SizeRemaining}}");
+  return { ok: true, data: (r.data || []).map(d => ({ drive: d.DriveLetter, label: d.FileSystemLabel || '', size: d.size || 0, free: d.free || 0 })) };
+});
+
+/* 更新检查（渲染层可主动触发） */
+ipcMain.handle('updater:checkNow', async () => {
+  const info = await updaterLoop(true);
+  return info || { ok: false };
+});
+ipcMain.handle('updater:getState', async () => ({ ok: true, version: VERSION, autoCheck: !!updateTimer }));
+
+/* 外链（官网 / Gitee / GitHub） */
+ipcMain.handle('sys:openUrl', async (e, url) => {
+  const u = String(url || '');
+  if (!/^https?:\/\//i.test(u)) return { ok: false };
+  shell.openExternal(u);
+  return { ok: true };
+});
+ipcMain.handle('sys:quitApp', async () => { global.__quitting = true; app.quit(); return { ok: true }; });
+
+/* 浏览器主页保护：真实读取 Edge/Chrome/Firefox 主页与默认搜索引擎，可一键修复为 Bing（先备份） */
+const BROWSER_PREFS=[
+  {id:'edge',name:'Microsoft Edge',pref:path.join(process.env.LOCALAPPDATA||'','Microsoft\\Edge\\User Data\\Default\\Preferences'),lock:path.join(process.env.LOCALAPPDATA||'','Microsoft\\Edge\\User Data\\lockfile')},
+  {id:'chrome',name:'Google Chrome',pref:path.join(process.env.LOCALAPPDATA||'','Google\\Chrome\\User Data\\Default\\Preferences'),lock:path.join(process.env.LOCALAPPDATA||'','Google\\Chrome\\User Data\\lockfile')},
+  {id:'firefox',name:'Mozilla Firefox',pref:path.join(process.env.APPDATA||'','Mozilla\\Firefox\\Profiles'),lock:''}
+];
+function homeRisk(hp,eng){
+  const s=(hp||'')+' '+(eng||'');
+  const hijack=/hj\.|hao123|2345\.|5566\.|aoyou\.|mystart|saohu|qjsearch|sys123|dh_|oik\.|tv\.|sogou\.com\/x?b?/i.test(s);
+  const engOk=!eng||/bing|google|baidu|360|sogou|microsoft/i.test(eng);
+  return {level:hijack?'high':(eng&&!engOk)?'med':'ok',hijack,engine:eng||null};
+}
+ipcMain.handle('web:homeProt', async () => {
+  const out=[];
+  for(const b of BROWSER_PREFS){
+    try{
+      if(b.id==='firefox'){
+        const hasProf=fs.existsSync(b.pref);
+        let homepage=null,engine=null,pjs=null;
+        if(hasProf){
+          const profs=fs.readdirSync(b.pref).filter(x=>/\.default/i.test(x));
+          if(profs.length){pjs=path.join(b.pref,profs[0],'prefs.js');if(fs.existsSync(pjs)){const txt=fs.readFileSync(pjs,'utf8');const m=txt.match(/user_pref\("browser\.startup\.homepage",\s*"([^"]+)"/);const e=txt.match(/user_pref\("browser\.search\.defaultenginename",\s*"([^"]+)"/);if(m)homepage=m[1];if(e)engine=e[1];}}
+        }
+        const risk=homeRisk(homepage,engine);
+        out.push({id:b.id,name:b.name,exists:!!pjs&&fs.existsSync(pjs),homepage,engine,risk,lock:false});
+      }else{
+        if(!fs.existsSync(b.pref)){out.push({id:b.id,name:b.name,exists:false,risk:{level:'ok',hijack:false,engine:null}});continue;}
+        const d=JSON.parse(fs.readFileSync(b.pref,'utf8'));
+        const hp=(d.homepage&&d.homepage!=='about:blank')?d.homepage:(d.homepage_is_newtabpage?'（新标签页）':null);
+        const eng=(d.default_search_provider_data&&d.default_search_provider_data.template_url_data&&d.default_search_provider_data.template_url_data.short_name)||null;
+        const lock=fs.existsSync(b.lock);
+        out.push({id:b.id,name:b.name,exists:true,homepage:hp,engine:eng,risk:homeRisk(hp,eng),lock});
+      }
+    }catch(e){out.push({id:b.id,name:b.name,exists:false,err:String(e&&e.message||e).slice(0,80),risk:{level:'ok',hijack:false,engine:null}});}
+  }
+  return {ok:true,data:out};
+});
+ipcMain.handle('web:homeFix', async (e,id) => {
+  const b=BROWSER_PREFS.find(x=>x.id===id);
+  if(!b)return {ok:false,err:'未知浏览器'};
+  if(b.id==='firefox')return {ok:false,manual:true,note:'Firefox 请在设置中手动修改主页，或打开设置页面操作'};
+  try{
+    if(!fs.existsSync(b.pref))return {ok:false,err:'未找到浏览器配置文件'};
+    if(fs.existsSync(b.lock))return {ok:false,err:'浏览器正在运行，请先退出浏览器后再修复'};
+    const bdir=path.join(INSTALL_DIR,'browser_backup');
+    await fsp.mkdir(bdir,{recursive:true});
+    await fsp.copyFile(b.pref,path.join(bdir,b.id+'.preferences.backup.json'));
+    const d=JSON.parse(fs.readFileSync(b.pref,'utf8'));
+    d.homepage='https://www.bing.com/';
+    d.homepage_is_newtabpage=false;
+    await fsp.writeFile(b.pref,JSON.stringify(d),'utf8');
+    return {ok:true,note:'已备份原配置，主页已修复为 Bing（https://www.bing.com/）'};
+  }catch(e){return {ok:false,err:String(e&&e.message||e).slice(0,120)};}
 });
