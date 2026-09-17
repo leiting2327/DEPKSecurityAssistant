@@ -79,6 +79,8 @@ svg{display:block}
 .status-pill .dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2.2s infinite}
 .status-pill.warn{background:var(--amber-soft);color:var(--amber)}
 .status-pill.warn .dot{background:var(--amber);box-shadow:0 0 8px var(--amber)}
+.chips{display:flex;flex-wrap:wrap;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:20px;font-size:12px;background:var(--panel-2);border:1px solid var(--border);color:var(--text-2)}
 .icon-btn{width:34px;height:34px;border-radius:var(--radius-s);display:flex;align-items:center;justify-content:center;color:var(--text-2);transition:background .12s,color .12s;position:relative}
 .icon-btn:hover{background:var(--panel-2);color:var(--text)}
 .icon-btn svg{width:19px;height:19px}
@@ -421,6 +423,7 @@ global.DEPKEngine={PAT,entropy,analyzeBuf,rd32,isExt};
 })(typeof window!=='undefined'?window:globalThis);
 
 </script>
+<script src="warn_audio.js"></script>
 <script>
 /* ================= 图标库 (Fluent 风格) ================= */
 const I = {
@@ -539,10 +542,11 @@ const store={theme:localStorage.getItem('ds_theme')||'dark',navCollapsed:localSt
   watchEvents:[],watchState:false,lastRealScan:null,realQ:[],procs:[],soft:[],
   updateVer:'2026.09.15.01',engineVer:'1.0.8842',sigCount:2485136,
   scanHist:[],quarantine:[],policies:[],endpoints:[],alerts:[],audit:[],notifs:[],rules:[],iocs:[],vulns:[],sessions:[],exclusions:[],
+  privacy:{cam:0,mic:0,camUsed:[],micUsed:[],camInUse:false,micInUse:false},
   scanState:null,lastScan:null};
 const REAL=!!(window.depk&&window.depk.isElectron);
 const LS_KEY='ds_store_v1';
-function save(){try{localStorage.setItem(LS_KEY,JSON.stringify({scanHist:store.scanHist,quarantine:store.quarantine,policies:store.policies,alerts:store.alerts,audit:store.audit,notifs:store.notifs,rules:store.rules,iocs:store.iocs,vulns:store.vulns,sessions:store.sessions,exclusions:store.exclusions,realtime:store.realtime,cloud:store.cloud,ai:store.ai,heuristic:store.heuristic,firewall:store.firewall,webProt:store.webProt,mailProt:store.mailProt,ids:store.ids,selfProtect:store.selfProtect}));}catch(e){}}
+function save(){try{localStorage.setItem(LS_KEY,JSON.stringify({scanHist:store.scanHist,quarantine:store.quarantine,policies:store.policies,alerts:store.alerts,audit:store.audit,notifs:store.notifs,rules:store.rules,iocs:store.iocs,vulns:store.vulns,sessions:store.sessions,exclusions:store.exclusions,realtime:store.realtime,cloud:store.cloud,ai:store.ai,heuristic:store.heuristic,firewall:store.firewall,webProt:store.webProt,mailProt:store.mailProt,ids:store.ids,selfProtect:store.selfProtect,privacy:store.privacy}));}catch(e){}}
 function load(){try{const d=JSON.parse(localStorage.getItem(LS_KEY));if(!d)return;Object.assign(store,d);}catch(e){}}
 function audit(action,detail,user='管理员'){store.audit.unshift({id:uid(),time:Date.now(),action,detail,user,ip:'192.168.1.10'});if(store.audit.length>300)store.audit.length=300;save();}
 
@@ -579,6 +583,7 @@ const NAV=[
  {id:'protection',l:'病毒防护',i:'shield'},
  {id:'network',l:'网络防护',i:'firewall'},
  {id:'device',l:'应用与设备',i:'apps'},
+ {id:'privacy',l:'隐私防护',i:'eye'},
  {id:'patching',l:'漏洞与补丁',i:'patch'},
  {id:'edr',l:'EDR 中心',i:'pulse'},
  {id:'local',l:'本机管理',i:'monitor'},
@@ -586,7 +591,7 @@ const NAV=[
  {id:'compliance',l:'合规与审计',i:'audit'},
  {id:'mgmt',l:'集中管理',i:'console'}
 ];
-const PAGE_TITLE={dashboard:'概览',protection:'病毒和威胁防护',network:'防火墙和网络保护',device:'应用与设备控制',patching:'漏洞与补丁管理',edr:'端点检测与响应 (EDR)',local:'本机管理（真实数据）',threat:'威胁情报与沙箱',compliance:'合规、审计与报表',mgmt:'集中管理控制台',settings:'设置'};
+const PAGE_TITLE={dashboard:'概览',protection:'病毒和威胁防护',network:'防火墙和网络保护',device:'应用与设备控制',privacy:'摄像头与麦克风防护',patching:'漏洞与补丁管理',edr:'端点检测与响应 (EDR)',local:'本机管理（真实数据）',threat:'威胁情报与沙箱',compliance:'合规、审计与报表',mgmt:'集中管理控制台',settings:'设置'};
 function go(page,tab){store.page=page;store.tab=tab||null;save();render();}
 function renderNav(){
   const n=$('#nav');
@@ -1288,6 +1293,134 @@ function rDevDlp(){
       <div class="mt16" style="font-size:12px;color:var(--text-2)"><b style="color:var(--amber)">3 条告警：</b>2 份机密文档尝试外发被阻断，1 份含密钥文件被加密管控</div>
     </div>
   </div>`;
+}
+
+/* ---------- 隐私防护（摄像头/麦克风盾） ---------- */
+function renderPrivacy(){
+  $('#tbTitle').textContent='隐私防护';$('#tbCrumb').textContent=PAGE_TITLE.privacy;
+  const p=store.privacy;
+  $('#viewInner').innerHTML=`<div class="view-fade">
+  <div class="card">
+    <div class="card-title flex between"><span>${I.eye} 摄像头防护</span><span class="status-pill ${p.cam?'':'warn'}">${p.cam?'<span class="dot"></span>防护已开启':'<span class="dot"></span>未开启'}</span></div>
+    <div class="tgl-row" style="border:1px solid var(--border)">
+      <div class="t-info"><div class="t-title">阻止摄像头被调用</div><div class="t-desc">开启后：任何程序调用摄像头均被系统拒绝；对方（远程/录屏/偷拍程序）只能看到「您已违法违规操作」警示画面，看不到任何画面</div></div>
+      <div class="toggle ${p.cam?'on':''}" id="camTgl" data-on="${p.cam?1:0}"></div>
+    </div>
+    <div class="grid-2 mt12">
+      <div class="kv"><span class="k">系统摄像头权限</span><span class="v" id="camVal">${p.cam?'已阻止 (Deny)':'允许 (Allow)'}</span></div>
+      <div class="kv"><span class="k">当前占用</span><span class="v" id="camInUse">${p.camInUse?'<b style="color:var(--red)">正在被调用</b>':'无'}</span></div>
+    </div>
+    ${REAL?`<div class="mt12" id="camUsedBox" style="display:${p.camUsed.length?'block':'none'}"><div style="font-size:12px;color:var(--text-2);margin-bottom:6px">最近调用摄像头的程序：</div><div class="chips">${p.camUsed.map((u,i)=>`<span class="chip">${esc(u.name)}${u.inUse?' <b style="color:var(--red)">●使用中</b>':''}${u.inUse?` <a style="color:var(--accent);cursor:pointer" data-killcam="${i}">终止</a>`:''}</span>`).join('')}</div></div>`:''}
+    <div class="flex mt16" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-danger btn-sm" id="camPreview">${I.eye} 预览「对方视角」</button>
+      ${p.cam?'<button class="btn btn-secondary btn-sm" id="camHideBlock">隐藏警示画面</button>':''}
+    </div>
+  </div>
+  <div class="card mt16">
+    <div class="card-title flex between"><span>${I.plug} 麦克风防护</span><span class="status-pill ${p.mic?'':'warn'}">${p.mic?'<span class="dot"></span>防护已开启':'<span class="dot"></span>未开启'}</span></div>
+    <div class="tgl-row" style="border:1px solid var(--border)">
+      <div class="t-info"><div class="t-title">阻止麦克风被调用</div><div class="t-desc">开启后：任何程序调用麦克风均被系统拒绝；对方（远程/窃听程序）只能听到反复播放的「您已违法违规操作」警示语音，听不到任何其他声音</div></div>
+      <div class="toggle ${p.mic?'on':''}" id="micTgl" data-on="${p.mic?1:0}"></div>
+    </div>
+    <div class="grid-2 mt12">
+      <div class="kv"><span class="k">系统麦克风权限</span><span class="v" id="micVal">${p.mic?'已阻止 (Deny)':'允许 (Allow)'}</span></div>
+      <div class="kv"><span class="k">当前占用</span><span class="v" id="micInUse">${p.micInUse?'<b style="color:var(--red)">正在被调用</b>':'无'}</span></div>
+    </div>
+    ${REAL?`<div class="mt12" id="micUsedBox" style="display:${p.micUsed.length?'block':'none'}"><div style="font-size:12px;color:var(--text-2);margin-bottom:6px">最近调用麦克风的程序：</div><div class="chips">${p.micUsed.map((u,i)=>`<span class="chip">${esc(u.name)}${u.inUse?' <b style="color:var(--red)">●使用中</b>':''}${u.inUse?` <a style="color:var(--accent);cursor:pointer" data-killmic="${i}">终止</a>`:''}</span>`).join('')}</div></div>`:''}
+    <div class="flex mt16" style="gap:10px;flex-wrap:wrap">
+      <button class="btn btn-danger btn-sm" id="micPreview">${I.plug} 试听警示语音</button>
+      <button class="btn btn-secondary btn-sm" id="micStop" style="display:none">${I.pause} 停止播放</button>
+    </div>
+  </div>
+  <div class="card mt16">
+    <div class="card-title">工作原理（真实生效，非演示）</div>
+    <div style="font-size:12.5px;color:var(--text-2);line-height:1.8">
+      ① 开启防护 = 写入 Windows 系统隐私开关（<span class="mono">CapabilityAccessManager → ConsentStore → Deny</span>），从系统层拒绝一切摄像头/麦克风调用；<br>
+      ② 占用检测 = 读取系统授权记录，实时识别正在调用摄像头/麦克风的程序；<br>
+      ③ 对方视角 = 摄像头被阻止时屏幕显示全屏警示（远程方只能看到该画面）；麦克风被阻止时循环播放内置警示语音（对方只能听到该语音）。<br>
+      <span style="color:var(--text-3)">系统级拒绝适用于所有程序（含远程控制、偷拍窃听类），无需逐程序配置。</span>
+    </div>
+  </div>
+  </div>`;
+  bindPrivacy();
+}
+function bindPrivacy(){
+  $('#camTgl').onclick=()=>privacyToggle('cam',!store.privacy.cam);
+  $('#micTgl').onclick=()=>privacyToggle('mic',!store.privacy.mic);
+  $('#camPreview').onclick=()=>camBlockShow();
+  $('#micPreview').onclick=()=>micAlarmStart();
+  const ms=$('#micStop');if(ms)ms.onclick=()=>micAlarmStop();
+  const hb=$('#camHideBlock');if(hb)hb.onclick=()=>camBlockHide();
+  $$('#camUsedBox [data-killcam]').forEach(el=>el.onclick=async()=>{
+    const u=store.privacy.camUsed[+el.dataset.killcam];
+    if(u&&confirm('终止程序「'+u.name+'」？')){const r=await window.depk.privacyKill(u.name);toast(r.ok&&r.data&&r.data.killed&&r.data.killed.length?('已终止：'+r.data.killed.join('、')):'未找到可终止进程（已系统级拒绝）','ok');privacyRefresh();}
+  });
+  $$('#micUsedBox [data-killmic]').forEach(el=>el.onclick=async()=>{
+    const u=store.privacy.micUsed[+el.dataset.killmic];
+    if(u&&confirm('终止程序「'+u.name+'」？')){const r=await window.depk.privacyKill(u.name);toast(r.ok&&r.data&&r.data.killed&&r.data.killed.length?('已终止：'+r.data.killed.join('、')):'未找到可终止进程（已系统级拒绝）','ok');privacyRefresh();}
+  });
+  if(REAL)privacyRefresh();
+}
+async function privacyToggle(dev,on){
+  const d=dev==='cam'?'webcam':'microphone';
+  store.privacy[dev]=on?1:0;save();renderPrivacy();
+  if(REAL&&window.depk.privacySet){
+    const r=await window.depk.privacySet(d,on);
+    if(r&&r.ok&&r.data){
+      const hk=r.data.machine?'系统级':'当前用户级';
+      toast(on?('已阻止'+d+'访问（'+hk+'）'):'已恢复'+d+'访问','ok');
+      if(on&&d==='webcam'&&store.privacy.camInUse)camBlockShow();
+      if(on&&d==='microphone'&&store.privacy.micInUse)micAlarmStart();
+    }else toast('设置失败：'+(r&&r.err||'未知错误'),'err');
+  }else{toast('浏览器预览：开关已记录（安装版为系统级生效）','ok');}
+  privacyRefresh();
+}
+async function privacyRefresh(){
+  if(!REAL||!window.depk.privacyGetStatus)return;
+  const r=await window.depk.privacyGetStatus();
+  if(!r||!r.ok||!r.data)return;
+  const w=r.data.webcam,m=r.data.microphone;
+  const camUsed=(w.used||[]).map(u=>({name:u.name,inUse:!!u.inUse}));
+  const micUsed=(m.used||[]).map(u=>({name:u.name,inUse:!!u.inUse}));
+  const prevCamIn=store.privacy.camInUse,prevMicIn=store.privacy.micInUse;
+  store.privacy.camUsed=camUsed;store.privacy.micUsed=micUsed;
+  store.privacy.camInUse=camUsed.some(u=>u.inUse);
+  store.privacy.micInUse=micUsed.some(u=>u.inUse);
+  const $=s=>document.querySelector(s);
+  if($('#camInUse'))$('#camInUse').innerHTML=store.privacy.camInUse?'<b style="color:var(--red)">正在被调用</b>':'无';
+  if($('#micInUse'))$('#micInUse').innerHTML=store.privacy.micInUse?'<b style="color:var(--red)">正在被调用</b>':'无';
+  if($('#camVal'))$('#camVal').textContent=(w.master==='Deny')?'已阻止 (Deny)':'允许 (Allow)';
+  if($('#micVal'))$('#micVal').textContent=(m.master==='Deny')?'已阻止 (Deny)':'允许 (Allow)';
+  if(store.privacy.cam&&store.privacy.camInUse&&!prevCamIn)camBlockShow();
+  if(store.privacy.mic&&store.privacy.micInUse&&!prevMicIn)micAlarmStart();
+  if(!store.privacy.micInUse&&prevMicIn)micAlarmStop();
+  if(!store.privacy.camInUse&&prevCamIn)camBlockHide();
+}
+function camBlockShow(){
+  const el=$('#camBlock');if(!el)return;
+  el.style.display='flex';
+  if(!store._camEsc){store._camEsc=true;document.addEventListener('keydown',e=>{if(e.key==='Escape')camBlockHide();});}
+}
+function camBlockHide(){
+  const el=$('#camBlock');if(el)el.style.display='none';
+}
+let _micAudio=null;
+function micAlarmStart(){
+  const bar=$('#micAlarmBar');if(bar)bar.style.display='flex';
+  const st=$('#micStop');if(st)st.style.display='';
+  if(_micAudio)return;
+  try{
+    if(typeof DEPK_WARN_AUDIO!=='string'||!DEPK_WARN_AUDIO)throw new Error('无语音素材');
+    const bin=atob(DEPK_WARN_AUDIO),u8=new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+    _micAudio=new Audio(URL.createObjectURL(new Blob([u8],{type:'audio/wav'})));
+    _micAudio.loop=true;_micAudio.play().catch(()=>{});
+  }catch(e){toast('无法播放警示语音：'+e.message,'err');}
+}
+function micAlarmStop(){
+  const bar=$('#micAlarmBar');if(bar)bar.style.display='none';
+  const st=$('#micStop');if(st)st.style.display='none';
+  if(_micAudio){_micAudio.pause();_micAudio=null;}
 }
 
 /* ---------- 漏洞与补丁 ---------- */
@@ -2131,7 +2264,7 @@ function rSetAbout(){
 /* ================= 主渲染 ================= */
 function renderView(){
   const t0=performance.now();
-  ({dashboard:renderDashboard,protection:renderProtection,network:renderNetwork,device:renderDevice,patching:renderPatching,edr:renderEDR,local:renderLocal,threat:renderThreat,compliance:renderCompliance,mgmt:renderMgmt,settings:renderSettings}[store.page]||renderDashboard)();
+  ({dashboard:renderDashboard,protection:renderProtection,network:renderNetwork,device:renderDevice,privacy:renderPrivacy,patching:renderPatching,edr:renderEDR,local:renderLocal,threat:renderThreat,compliance:renderCompliance,mgmt:renderMgmt,settings:renderSettings}[store.page]||renderDashboard)();
   renderNav();updateStatus();
 }
 function updateStatus(){
@@ -2149,6 +2282,8 @@ function init(){
   $('#btnTheme').onclick=()=>{store.theme=store.theme==='dark'?'light':'dark';save();applyTheme();};
   $('#btnNotif').onclick=()=>showNotifs();
   $('#btnScanNow').onclick=()=>startScan('quick');
+  const mcb=$('#micAlarmClose');if(mcb)mcb.onclick=()=>micAlarmStop();
+  setInterval(()=>{if(store.page==='privacy'&&store.privacy&&(store.privacy.cam||store.privacy.mic))privacyRefresh();},5000);
   if(REAL&&window.depk.onWatchEvent){window.depk.onWatchEvent(d=>{store.watchEvents.unshift(d);if(store.watchEvents.length>200)store.watchEvents.length=200;if(store.page==='local'&&store.tab==='watch')renderLocal();});}
   if(store.audit.length===0){audit('系统启动','DEPK Security Assistant 初始化完成');audit('登录','管理员通过 MFA 登录控制台');}
   renderView();
@@ -2161,5 +2296,23 @@ function showNotifs(){
 }
 init();
 </script>
+
+<!-- ===== 隐私防护：摄像头警示层（对方视角） ===== -->
+<div id="camBlock" style="display:none;position:fixed;inset:0;z-index:999999;background:#000;flex-direction:column;align-items:center;justify-content:center;text-align:center;cursor:default;user-select:none">
+  <div style="width:56px;height:56px;border-radius:50%;border:2px solid #ff2d2d;display:flex;align-items:center;justify-content:center;margin-bottom:22px;animation:camPulse 1.2s ease-in-out infinite">
+    <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke="#ff2d2d" stroke-width="2"><rect x="2.5" y="6" width="13" height="12" rx="2"/><path d="M15.5 10.5l6-3.5v10l-6-3.5"/><path d="M4 4L20 20" stroke-linecap="round"/></svg>
+  </div>
+  <div style="color:#ff2d2d;font-size:44px;font-weight:800;letter-spacing:6px;line-height:1.3" id="camBlockTxt">您已违法违规操作</div>
+  <div style="color:rgba(255,255,255,.5);font-size:15px;margin-top:18px;letter-spacing:3px">摄像头访问已被 DEPK 安全防护阻止</div>
+  <div style="color:rgba(255,255,255,.25);font-size:11.5px;margin-top:26px;letter-spacing:1px">DEPK SECURITY ASSISTANT · PRIVACY SHIELD</div>
+</div>
+<div id="micAlarmBar" style="display:none;position:fixed;left:16px;bottom:16px;z-index:999998;background:rgba(0,0,0,.88);border:1px solid rgba(255,45,45,.33);border-radius:12px;padding:10px 16px;align-items:center;gap:10px;font-size:12.5px;color:#ff8a8a;box-shadow:0 8px 32px rgba(0,0,0,.5)">
+  <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:#ff2d2d;animation:camPulse 1s infinite"></span>
+  <span>麦克风警示语音播放中（您已违法违规操作）</span>
+  <button id="micAlarmClose" style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:16px;line-height:1" title="停止播放">×</button>
+</div>
+<style>
+@keyframes camPulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(1.08)}}
+</style>
 </body>
 </html>

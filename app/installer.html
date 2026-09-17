@@ -145,6 +145,7 @@ const FEATS = [
   {i:'monitor',t:'本机管理',d:'真实进程终止、启动项、网络连接、系统信息、U盘识别、软件清单'},
   {i:'bolt',t:'实时监控',d:'fs.watch 实时监控下载/桌面/文档，文件变更即时记录上报'},
   {i:'lock',t:'加密隔离区',d:'威胁文件移入隔离目录并记录元数据，可随时恢复或删除'},
+  {i:'shield',t:'摄像头/麦克风防护',d:'系统级拒绝偷拍窃听：对方只能看到「您已违法违规操作」警示画面、只能听到循环警示语音'},
   {i:'report',t:'审计与报表',d:'操作审计、扫描历史、隔离清单，一键导出 CSV/JSON'}
 ];
 const $=s=>document.querySelector(s);
@@ -159,7 +160,7 @@ $('#featList').innerHTML = FEATS.map(f=>`<div class="fcard"><div class="fi">${I[
 function renderWelcome(){
   $('#stepBody').innerHTML = `
     <div class="st-title fade-in"><span class="dot"></span>安装 DEPK Security Assistant</div>
-    <div class="st-sub">终端安全助手 · 3.4.214<br>左侧为本机已内置的全部安全能力，全部本地引擎驱动，无需云端即可工作。</div>
+    <div class="st-sub">终端安全助手 · 3.4.215<br>左侧为本机已内置的全部安全能力，全部本地引擎驱动，无需云端即可工作。</div>
     <div class="opt fade-in" style="margin-top:26px">
       <label><input type="checkbox" id="optAuto"><span class="chk"></span><span><div class="ot">开机抢先启动（推荐）</div>
       <div class="od">登录时立即以高优先级（Priority 4）启动，零延迟，先于绝大多数自启动程序；与计划任务双保险，让防护尽可能早于威胁发作。</div></span></label>

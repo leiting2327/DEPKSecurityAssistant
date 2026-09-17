@@ -32,5 +32,8 @@ contextBridge.exposeInMainWorld('depk', {
   scanResidual: (name, location) => ipcRenderer.invoke('depk:scanResidual', { name, location }),
   deleteResidual: (paths) => ipcRenderer.invoke('depk:deleteResidual', { paths }),
   openLocation: (p) => ipcRenderer.invoke('depk:openLocation', p),
-  copyText: (t) => ipcRenderer.invoke('depk:copyText', t)
+  copyText: (t) => ipcRenderer.invoke('depk:copyText', t),
+  privacyGetStatus: () => ipcRenderer.invoke('privacy:status'),
+  privacySet: (dev, deny) => ipcRenderer.invoke('privacy:set', { dev, deny }),
+  privacyKill: (name) => ipcRenderer.invoke('privacy:kill', name)
 });

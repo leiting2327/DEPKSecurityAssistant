@@ -377,7 +377,7 @@ if (SETUP) {
       await createShortcut(path.join(os.homedir(), 'Desktop', 'DEPK Security Assistant.lnk'), exe, '', 'DEPK Security Assistant', exe);
       // 注册表（卸载项 + Run 键）
       const unreg = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\DEPKSecurityAssistant';
-      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.214'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
+      await psExec(`New-Item -Path ${unreg} -Force | Out-Null; Set-ItemProperty ${unreg} DisplayName 'DEPK Security Assistant'; Set-ItemProperty ${unreg} DisplayVersion '3.4.215'; Set-ItemProperty ${unreg} Publisher 'DEPK Security'; Set-ItemProperty ${unreg} DisplayIcon '${exe}',0; Set-ItemProperty ${unreg} InstallLocation '${target}'; Set-ItemProperty ${unreg} UninstallString '\"${exe}\" --setup'`);
       // 开机抢先启动：计划任务（登录触发 + 高优先级） + Run 键双保险
       if (autostart) {
         await psExec(`$a=New-ScheduledTaskAction -Execute '${exe}' -Argument '--app'; $t=New-ScheduledTaskTrigger -AtLogOn; $s=New-ScheduledTaskSettingsSet -Priority 4 -ExecutionTimeLimit ([TimeSpan]::Zero) -AllowStartIfOnBatteries; Register-ScheduledTask -TaskName 'DEPKSecurityGuard' -Action $a -Trigger $t -Settings $s -Force | Out-Null`);
@@ -514,4 +514,66 @@ ipcMain.handle('depk:copyText', async (e, t) => {
   const { clipboard } = require('electron');
   clipboard.writeText(String(t || ''));
   return { ok: true };
+});
+
+/* ---------- IPC：摄像头/麦克风防护（真实 Windows 隐私开关） ---------- */
+const CONSENT='Software\\Microsoft\\Windows\\CurrentVersion\\CapabilityAccessManager\\ConsentStore';
+
+async function privacyGet(dev){
+  const script=`
+$ErrorActionPreference='SilentlyContinue'
+function Get-Consent($d){
+  $base="HKCU:\\${CONSENT}\\$d"
+  $master=(Get-ItemProperty -Path $base -Name '(default)' -ErrorAction SilentlyContinue).'(default)'
+  if(-not $master){$master='Allow'}
+  $used=@()
+  $np=Join-Path $base 'NonPackaged'
+  if(Test-Path $np){
+    Get-ChildItem $np -ErrorAction SilentlyContinue | ForEach-Object {
+      $p=Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+      $st=$p.LastUsedTimeStart; $sp=$p.LastUsedTimeStop
+      if($st){ $used += [pscustomobject]@{ name=$_.PSChildName; inUse=[bool]($sp -eq 0 -or $null -eq $sp) } }
+    }
+  }
+  [pscustomobject]@{ master=$master; used=@($used) }
+}
+$w=Get-Consent 'webcam'; $m=Get-Consent 'microphone'
+[pscustomobject]@{ webcam=$w; microphone=$m } | ConvertTo-Json -Depth 5 -Compress`;
+  return jsonOut(script);
+}
+async function privacySet(dev, deny){
+  const val = deny ? 'Deny' : 'Allow';
+  const script=`
+$ErrorActionPreference='SilentlyContinue'
+$d='${dev}'; $v='${val}'
+$u="HKCU:\\${CONSENT}\\$d"
+$s="HKLM:\\${CONSENT}\\$d"
+try{ Set-ItemProperty -Path $u -Name '(default)' -Value $v -ErrorAction Stop; $uok=$true }catch{ $uok=$false }
+try{ Set-ItemProperty -Path $s -Name '(default)' -Value $v -ErrorAction Stop; $sok=$true }catch{ $sok=$false }
+[pscustomobject]@{ user=$uok; machine=$sok } | ConvertTo-Json -Compress`;
+  return jsonOut(script);
+}
+async function privacyKill(name){
+  const script=`
+$ErrorActionPreference='SilentlyContinue'
+$n='${String(name||'').replace(/'/g,"''")}'
+$k=@(Get-Process -ErrorAction SilentlyContinue | Where-Object { $_.ProcessName -like "*$n*" })
+$k | Stop-Process -Force -ErrorAction SilentlyContinue
+[pscustomobject]@{ killed=@($k | ForEach-Object { $_.ProcessName }) } | ConvertTo-Json -Compress`;
+  return jsonOut(script);
+}
+ipcMain.handle('privacy:status', async () => {
+  const r = await privacyGet();
+  if (!r.ok) return { ok:false, err:r.err };
+  return { ok:true, data:r.data };
+});
+ipcMain.handle('privacy:set', async (e, { dev, deny }) => {
+  const r = await privacySet(dev, !!deny);
+  if (!r.ok) return { ok:false, err:r.err };
+  return { ok:true, data:r.data };
+});
+ipcMain.handle('privacy:kill', async (e, name) => {
+  const r = await privacyKill(name);
+  if (!r.ok) return { ok:false, err:r.err };
+  return { ok:true, data:r.data };
 });
